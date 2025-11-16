@@ -8,12 +8,30 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(uuid())
+  email       String    @unique
+  fullName    String?
+  phoneNumber String?
+  isVerified  Boolean   @default(false)
+  otpHash     String?
+  otpExpiry   DateTime?
+  sessions    Session[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@map("users")
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  deviceId   String?
+  ip         String?
+  userAgent  String?
+  revoked    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }
