@@ -12,7 +12,7 @@ import { redis } from '../../config/redis.js';
 const prisma = new PrismaClient();
 
 const OTP_RATE_LIMIT_PREFIX = 'otp_rate_limit:';
-const OTP_RATE_LIMIT_MAX = 3;
+const OTP_RATE_LIMIT_MAX = 5;
 const OTP_RATE_LIMIT_WINDOW = 900;
 const OTP_EXPIRY_MINUTES = 5;
 
@@ -114,6 +114,7 @@ export class AuthService {
 
     return {
       accessToken,
+      refreshToken,
       user: this.sanitizeUser(user),
     };
   }
@@ -199,6 +200,7 @@ export class AuthService {
 
     return {
       accessToken,
+      refreshToken: newRefreshToken,
       user: this.sanitizeUser(user),
     };
   }

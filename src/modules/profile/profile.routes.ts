@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { profileController } from './profile.controller.js';
-import { authenticate } from '../../middleware/authMiddleware.js';
-import { validateRequest } from '../../middleware/validateRequest.js';
+import { authenticateToken } from '../../middleware/authMiddleware.js';
+// import { validate } from '../../middleware/validate.js';
+import { validate } from 'middleware/validate.js';
 import {
   CreateProfileSchema,
   StepUpdateSchema,
@@ -11,30 +12,30 @@ const router = Router();
 
 router.post(
   '/',
-  authenticate,
-  validateRequest(CreateProfileSchema),
+  authenticateToken,
+  validate(CreateProfileSchema),
   profileController.createProfile.bind(profileController)
 );
 
-router.get('/me', authenticate, profileController.getMyProfile.bind(profileController));
+router.get('/me', authenticateToken, profileController.getMyProfile.bind(profileController));
 
-router.get('/:id', authenticate, profileController.getProfileById.bind(profileController));
+router.get('/:id', authenticateToken, profileController.getProfileById.bind(profileController));
 
 router.patch(
   '/:id/step',
-  authenticate,
-  validateRequest(StepUpdateSchema),
+  authenticateToken,
+  validate(StepUpdateSchema),
   profileController.updateProfileStep.bind(profileController)
 );
 
-router.post('/:id/publish', authenticate, profileController.publishProfile.bind(profileController));
+router.post('/:id/publish', authenticateToken, profileController.publishProfile.bind(profileController));
 
 router.post(
   '/:id/unpublish',
-  authenticate,
+  authenticateToken,
   profileController.unpublishProfile.bind(profileController)
 );
 
-router.delete('/:id', authenticate, profileController.deleteProfile.bind(profileController));
+router.delete('/:id', authenticateToken, profileController.deleteProfile.bind(profileController));
 
 export default router;

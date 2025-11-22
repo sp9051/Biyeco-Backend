@@ -4,10 +4,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  DATABASE_URL: z.string().min(1, 'postgresql://postgres:postgres@localhost:5432/biye_db'),
+  REDIS_URL: z.string().min(1, 'redis://127.0.0.1:6379'),
+  JWT_SECRET: z.string().min(32, '58038c80d42a960fe3618326f7ac0273'),
+  JWT_REFRESH_SECRET: z.string().min(32, '6411c27a28bc57b0841348b5d21adb3c'),
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

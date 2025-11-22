@@ -45,6 +45,7 @@ export class TokenService {
     return refreshToken;
   }
 
+
   async verifyAccessToken(token: string): Promise<JWTPayload> {
     try {
       const payload = jwt.verify(token, env.JWT_SECRET, {
@@ -69,11 +70,16 @@ export class TokenService {
     const data = await redis.get(key);
 
     if (!data) {
-      await this.detectTokenReuse(refreshToken);
+      // await this.detectTokenReuse(refreshToken);
       throw new Error('Invalid or expired refresh token');
     }
 
     const tokenData: RefreshTokenData = JSON.parse(data);
+
+    const isValid = await bcrypt.compare(refreshToken, tokenData.tokenHash);
+    if (!isValid) {
+      throw new Error('Invalid refresh token');
+    }
 
     return tokenData;
   }
@@ -83,9 +89,11 @@ export class TokenService {
     userId: string,
     sessionId: string
   ): Promise<string> {
-    await this.invalidateRefreshToken(oldRefreshToken);
 
     const newRefreshToken = await this.generateRefreshToken(userId, sessionId);
+
+    await this.invalidateRefreshToken(oldRefreshToken);
+
 
     logger.info('Refresh token rotated', { userId, sessionId });
 

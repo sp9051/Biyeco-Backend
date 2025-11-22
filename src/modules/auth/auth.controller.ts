@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { authService } from './auth.service.js';
 import { RegisterDTO, VerifyOTPDTO, LoginDTO } from './auth.dto.js';
 import { SessionInfo } from './auth.types.js';
-import { successResponse } from '../../utils/response.js';
+import { sendSuccess } from '../../utils/response.js';
 import { logger } from '../../utils/logger.js';
 
 export class AuthController {
@@ -12,7 +12,7 @@ export class AuthController {
 
       const result = await authService.register(dto);
 
-      return successResponse(res, result, result.message, 201);
+      return sendSuccess(res, result, result.message, 201);
     } catch (error) {
       next(error);
     }
@@ -30,7 +30,7 @@ export class AuthController {
 
       const result = await authService.verify(dto, sessionInfo);
 
-      res.cookie('refreshToken', result.accessToken, {
+      res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -38,7 +38,7 @@ export class AuthController {
         path: '/',
       });
 
-      return successResponse(res, result, 'Verification successful', 200);
+      return sendSuccess(res, result, 'Verification successful', 200);
     } catch (error) {
       next(error);
     }
@@ -50,11 +50,12 @@ export class AuthController {
 
       const result = await authService.login(dto);
 
-      return successResponse(res, result, 'OTP sent to your email. Please verify to login.', 200);
+      return sendSuccess(res, result, 'OTP sent to your email. Please verify to login.', 200);
     } catch (error) {
       next(error);
     }
   }
+
 
   async refresh(req: Request, res: Response, next: NextFunction) {
     try {
@@ -72,7 +73,7 @@ export class AuthController {
 
       const result = await authService.refresh(refreshToken, sessionInfo);
 
-      res.cookie('refreshToken', result.accessToken, {
+      res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -80,7 +81,7 @@ export class AuthController {
         path: '/',
       });
 
-      return successResponse(res, result, 'Token refreshed successfully', 200);
+      return sendSuccess(res, result, 'Token refreshed successfully', 200);
     } catch (error) {
       next(error);
     }
@@ -104,7 +105,7 @@ export class AuthController {
         path: '/',
       });
 
-      return successResponse(res, null, 'Logged out successfully', 200);
+      return sendSuccess(res, null, 'Logged out successfully', 200);
     } catch (error) {
       next(error);
     }
@@ -120,7 +121,7 @@ export class AuthController {
 
       const user = await authService.getMe(userId);
 
-      return successResponse(res, user, 'User retrieved successfully', 200);
+      return sendSuccess(res, user, 'User retrieved successfully', 200);
     } catch (error) {
       next(error);
     }

@@ -3,7 +3,7 @@ import { profileService } from './profile.service.js';
 import { profilePermissions } from './profile.permissions.js';
 import { CreateProfileDTO, StepUpdateDTO } from './profile.dto.js';
 import { RequesterContext } from './profile.types.js';
-import { successResponse } from '../../utils/response.js';
+import { sendSuccess } from '../../utils/response.js';
 import { logger } from '../../utils/logger.js';
 
 export class ProfileController {
@@ -14,7 +14,7 @@ export class ProfileController {
 
       const profile = await profileService.createProfile(userId, dto);
 
-      return successResponse(res, profile, 'Profile created successfully', 201);
+      return sendSuccess(res, profile, 'Profile created successfully', 201);
     } catch (error) {
       next(error);
     }
@@ -27,10 +27,10 @@ export class ProfileController {
       const profile = await profileService.getMyProfile(userId);
 
       if (!profile) {
-        return successResponse(res, null, 'No profile found', 404);
+        return sendSuccess(res, null, 'No profile found', 404);
       }
 
-      return successResponse(res, profile, 'Profile retrieved successfully', 200);
+      return sendSuccess(res, profile, 'Profile retrieved successfully', 200);
     } catch (error) {
       next(error);
     }
@@ -52,7 +52,7 @@ export class ProfileController {
 
       const maskedProfile = profilePermissions.maskProfile(profile, requester);
 
-      return successResponse(res, maskedProfile, 'Profile retrieved successfully', 200);
+      return sendSuccess(res, maskedProfile, 'Profile retrieved successfully', 200);
     } catch (error) {
       next(error);
     }
@@ -66,7 +66,7 @@ export class ProfileController {
 
       const profile = await profileService.updateProfileStep(id, userId, stepData);
 
-      return successResponse(res, profile, 'Profile step updated successfully', 200);
+      return sendSuccess(res, profile, 'Profile step updated successfully', 200);
     } catch (error) {
       next(error);
     }
@@ -79,7 +79,7 @@ export class ProfileController {
 
       const profile = await profileService.publishProfile(id, userId);
 
-      return successResponse(res, profile, 'Profile published successfully', 200);
+      return sendSuccess(res, profile, 'Profile published successfully', 200);
     } catch (error) {
       next(error);
     }
@@ -92,7 +92,7 @@ export class ProfileController {
 
       const profile = await profileService.unpublishProfile(id, userId);
 
-      return successResponse(res, profile, 'Profile unpublished successfully', 200);
+      return sendSuccess(res, profile, 'Profile unpublished successfully', 200);
     } catch (error) {
       next(error);
     }
@@ -105,7 +105,7 @@ export class ProfileController {
 
       await profileService.softDeleteProfile(id, userId);
 
-      return successResponse(res, null, 'Profile deleted successfully', 200);
+      return sendSuccess(res, null, 'Profile deleted successfully', 200);
     } catch (error) {
       next(error);
     }

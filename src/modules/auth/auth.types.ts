@@ -5,6 +5,7 @@ export interface TokenPair {
 
 export interface AuthResponse {
   accessToken: string;
+  refreshToken: string;
   user: UserResponse;
 }
 
