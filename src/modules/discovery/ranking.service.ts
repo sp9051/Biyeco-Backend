@@ -44,7 +44,11 @@ export class RankingService {
 
     const preferences = userPreferences.basic;
 
-    if (preferences.ageRange && profile.dob) {
+    if (
+      Array.isArray(preferences.ageRange) &&
+      preferences.ageRange.length === 2 &&
+      profile.dob
+    ) {
       const age = this.calculateAge(profile.dob);
       const [minAge, maxAge] = preferences.ageRange;
       if (age >= minAge && age <= maxAge) {
@@ -63,7 +67,7 @@ export class RankingService {
     if (preferences.location && profile.location) {
       const profileCity = profile.location?.city;
       const preferredCity = preferences.location?.city;
-      
+
       if (profileCity && preferredCity && profileCity === preferredCity) {
         score += 1;
       }
