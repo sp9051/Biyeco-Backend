@@ -8,19 +8,21 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  fullName     String?
-  phoneNumber  String?
-  passwordHash String?
-  isVerified   Boolean       @default(false)
-  otpHash      String?
-  otpExpiry    DateTime?
-  sessions     Session[]
-  profile      Profile?
-  savedSearches SavedSearch[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id              String        @id @default(uuid())
+  email           String        @unique
+  fullName        String?
+  phoneNumber     String?
+  passwordHash    String?
+  isVerified      Boolean       @default(false)
+  otpHash         String?
+  otpExpiry       DateTime?
+  sessions        Session[]
+  profile         Profile?
+  savedSearches   SavedSearch[]
+  interestsSent   Interest[]    @relation("InterestFrom")
+  interestsReceived Interest[]  @relation("InterestTo")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@map("users")
 }
@@ -107,4 +109,22 @@ model SavedSearch {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("saved_searches")
+}
+
+model Interest {
+  id         String   @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  fromUser User @relation("InterestFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("InterestTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+  @@map("interests")
 }
