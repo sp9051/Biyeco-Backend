@@ -1,0 +1,372 @@
+import { PrismaClient } from '@prisma/client';
+import { ProfileData, RequesterContext } from './profile.types.js';
+import {
+  CreateProfileDTO,
+  StepUpdateDTO,
+  UpdatePhotosMetadataStepDTO,
+  UpdatePreferencesStepDTO,
+} from './profile.dto.js';
+import { completenessService } from './completeness.service.js';
+import { profilePermissions } from './profile.permissions.js';
+import { logger } from '../../utils/logger.js';
+
+const prisma = new PrismaClient();
+
+export class ProfileService {
+  async createProfile(userId: string, dto: CreateProfileDTO): Promise<ProfileData> {
+    const existingProfile = await prisma.profile.findUnique({
+      where: { userId },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    if (existingProfile && !existingProfile.deletedAt) {
+      throw new Error('Profile already exists for this user');
+    }
+
+    const profile = await prisma.profile.create({
+      data: {
+        userId,
+        displayName: dto.displayName,
+        headline: dto.headline,
+        about: dto.about,
+        published: false,
+        completeness: 0,
+      },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    const completeness = completenessService.calculateCompleteness(profile as ProfileData);
+
+    const updatedProfile = await prisma.profile.update({
+      where: { id: profile.id },
+      data: { completeness },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    logger.info('Profile created', { userId, profileId: updatedProfile.id });
+
+    return updatedProfile as ProfileData;
+  }
+
+  async getMyProfile(userId: string): Promise<ProfileData | null> {
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    if (!profile || profile.deletedAt) {
+      return null;
+    }
+
+    return profile as ProfileData;
+  }
+
+  async getProfileById(profileId: string, requester: RequesterContext): Promise<ProfileData> {
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    if (!profile || profile.deletedAt) {
+      throw new Error('Profile not found');
+    }
+
+    const canView = profilePermissions.canViewProfile(profile as ProfileData, requester);
+
+    if (!canView) {
+      throw new Error('You do not have permission to view this profile');
+    }
+
+    return profile as ProfileData;
+  }
+
+  async updateProfileStep(
+    profileId: string,
+    userId: string,
+    stepData: StepUpdateDTO
+  ): Promise<ProfileData> {
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    if (!profile || profile.deletedAt) {
+      throw new Error('Profile not found');
+    }
+
+    if (profile.userId !== userId) {
+      throw new Error('You do not have permission to update this profile');
+    }
+
+    let updatedProfile: any;
+
+    switch (stepData.step) {
+      case 'about':
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: {
+            about: stepData.data.about,
+            headline: stepData.data.headline || profile.headline,
+          },
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'demographics':
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: {
+            gender: stepData.data.gender,
+            dob: new Date(stepData.data.dob),
+          },
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'family':
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: {
+            location: {
+              ...(profile.location as any),
+              family: stepData.data.familyDetails,
+            },
+          },
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'lifestyle':
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: {
+            location: {
+              ...(profile.location as any),
+              lifestyle: stepData.data.lifestyle,
+            },
+          },
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'location':
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: {
+            location: stepData.data.location,
+          },
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'photos-metadata':
+        await prisma.photo.deleteMany({
+          where: { profileId },
+        });
+
+        await prisma.photo.createMany({
+          data: stepData.data.photos.map((photo) => ({
+            profileId,
+            objectKey: photo.objectKey,
+            url: photo.url,
+            fileSize: photo.fileSize,
+            privacyLevel: photo.privacyLevel,
+          })),
+        });
+
+        updatedProfile = await prisma.profile.findUnique({
+          where: { id: profileId },
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'preferences':
+        const existingPreferences = await prisma.preference.findUnique({
+          where: { profileId },
+        });
+
+        if (existingPreferences) {
+          await prisma.preference.update({
+            where: { profileId },
+            data: {
+              basic: stepData.data.preferences.basic || existingPreferences.basic,
+              lifestyle: stepData.data.preferences.lifestyle || existingPreferences.lifestyle,
+              education: stepData.data.preferences.education || existingPreferences.education,
+              community: stepData.data.preferences.community || existingPreferences.community,
+              location: stepData.data.preferences.location || existingPreferences.location,
+            },
+          });
+        } else {
+          await prisma.preference.create({
+            data: {
+              profileId,
+              basic: stepData.data.preferences.basic,
+              lifestyle: stepData.data.preferences.lifestyle,
+              education: stepData.data.preferences.education,
+              community: stepData.data.preferences.community,
+              location: stepData.data.preferences.location,
+            },
+          });
+        }
+
+        updatedProfile = await prisma.profile.findUnique({
+          where: { id: profileId },
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      default:
+        throw new Error('Invalid step');
+    }
+
+    const completeness = completenessService.calculateCompleteness(updatedProfile as ProfileData);
+
+    const finalProfile = await prisma.profile.update({
+      where: { id: profileId },
+      data: { completeness },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    logger.info('Profile step updated', {
+      profileId,
+      step: stepData.step,
+      completeness,
+    });
+
+    return finalProfile as ProfileData;
+  }
+
+  async publishProfile(profileId: string, userId: string): Promise<ProfileData> {
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    if (!profile || profile.deletedAt) {
+      throw new Error('Profile not found');
+    }
+
+    if (profile.userId !== userId) {
+      throw new Error('You do not have permission to publish this profile');
+    }
+
+    const { canPublish, missingFields } = completenessService.canPublish(profile as ProfileData);
+
+    if (!canPublish) {
+      throw new Error(
+        `Profile cannot be published. Missing required fields: ${missingFields.join(', ')}`
+      );
+    }
+
+    const updatedProfile = await prisma.profile.update({
+      where: { id: profileId },
+      data: { published: true },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    logger.info('Profile published', { profileId, userId });
+
+    return updatedProfile as ProfileData;
+  }
+
+  async unpublishProfile(profileId: string, userId: string): Promise<ProfileData> {
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+    });
+
+    if (!profile || profile.deletedAt) {
+      throw new Error('Profile not found');
+    }
+
+    if (profile.userId !== userId) {
+      throw new Error('You do not have permission to unpublish this profile');
+    }
+
+    const updatedProfile = await prisma.profile.update({
+      where: { id: profileId },
+      data: { published: false },
+      include: {
+        photos: true,
+        preferences: true,
+      },
+    });
+
+    logger.info('Profile unpublished', { profileId, userId });
+
+    return updatedProfile as ProfileData;
+  }
+
+  async softDeleteProfile(profileId: string, userId: string): Promise<void> {
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+    });
+
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    if (profile.userId !== userId) {
+      throw new Error('You do not have permission to delete this profile');
+    }
+
+    await prisma.profile.update({
+      where: { id: profileId },
+      data: {
+        deletedAt: new Date(),
+        published: false,
+      },
+    });
+
+    logger.info('Profile soft deleted', { profileId, userId });
+  }
+}
+
+export const profileService = new ProfileService();

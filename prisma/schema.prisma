@@ -8,12 +8,82 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String    @id @default(uuid())
+  email        String    @unique
+  fullName     String?
+  phoneNumber  String?
+  passwordHash String?
+  isVerified   Boolean   @default(false)
+  otpHash      String?
+  otpExpiry    DateTime?
+  sessions     Session[]
+  profile      Profile?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@map("users")
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  deviceId   String?
+  ip         String?
+  userAgent  String?
+  revoked    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Profile {
+  id           String      @id @default(uuid())
+  userId       String      @unique
+  displayName  String
+  headline     String?
+  about        String?
+  gender       String?
+  dob          DateTime?
+  location     Json?
+  published    Boolean     @default(false)
+  completeness Int         @default(0)
+  photos       Photo[]
+  preferences  Preference?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Photo {
+  id               String   @id @default(uuid())
+  profileId        String
+  objectKey        String?
+  url              String?
+  fileSize         Int?
+  privacyLevel     String   @default("public")
+  moderationStatus String   @default("pending")
+  createdAt        DateTime @default(now())
+  profile          Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("photos")
+}
+
+model Preference {
+  id        String   @id @default(uuid())
+  profileId String   @unique
+  basic     Json?
+  lifestyle Json?
+  education Json?
+  community Json?
+  location  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("preferences")
 }
