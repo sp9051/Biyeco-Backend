@@ -128,3 +128,39 @@ model Interest {
   @@index([status])
   @@map("interests")
 }
+
+// Chat & Messaging Models
+// Note: participants as String[] is PostgreSQL-specific array type
+// For databases without array support, consider using JSON type instead
+model Thread {
+  id           String    @id @default(uuid())
+  participants String[]  // Array of userIds - PostgreSQL text[] type
+  lastMsgAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  messages     Message[]
+
+  @@index([lastMsgAt])
+  @@map("threads")
+}
+
+// Consider partitioning messages by date for scale in production
+// Archive older messages to separate table/storage for better performance
+model Message {
+  id         String   @id @default(uuid())
+  threadId   String
+  fromUserId String
+  toUserId   String?  // nullable for group threads
+  content    String
+  metadata   Json?    // For flags like moderation status, attachments, etc.
+  delivered  Boolean  @default(false)
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@map("messages")
+}
