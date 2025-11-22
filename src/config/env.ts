@@ -16,6 +16,22 @@ const envSchema = z.object({
   }),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
   ALLOWED_ORIGINS: z.string().transform((val) => val.split(',').map((origin) => origin.trim())),
+  
+  UPLOAD_PROVIDER: z.enum(['s3', 'cloudinary']).default('s3'),
+  MAX_UPLOAD_BYTES: z.string().default('5242880').transform(Number),
+  ALLOWED_MIME_TYPES: z.string().default('image/jpeg,image/png,image/webp,image/avif').transform((val) => val.split(',').map((type) => type.trim())),
+  UPLOAD_URL_EXPIRY_SECONDS: z.string().default('300').transform(Number),
+  
+  AWS_S3_BUCKET: z.string().optional(),
+  AWS_REGION: z.string().optional(),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+  
+  MODERATION_SECRET: z.string().min(32).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

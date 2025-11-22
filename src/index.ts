@@ -9,6 +9,9 @@ import { logRequest } from './utils/logger.js';
 import healthRoute from './routes/health.route.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import profileRoutes from './modules/profile/profile.routes.js';
+import mediaRoutes from './modules/media/media.routes.js';
+import moderationRoutes from './modules/media/moderation.routes.js';
+import profilePhotosRoutes from './modules/profile/profile.photos.routes.js';
 
 export function createApp() {
   const app = express();
@@ -37,6 +40,9 @@ export function createApp() {
   app.use('/api/health', healthRoute);
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/profiles', profileRoutes);
+  app.use('/api/v1/profiles', profilePhotosRoutes);
+  app.use('/api/v1/media', mediaRoutes);
+  app.use('/api/v1/media/moderation', moderationRoutes);
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({

@@ -60,15 +60,19 @@ model Profile {
 }
 
 model Photo {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   profileId        String
   objectKey        String?
   url              String?
   fileSize         Int?
-  privacyLevel     String   @default("public")
-  moderationStatus String   @default("pending")
-  createdAt        DateTime @default(now())
-  profile          Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  mimeType         String?
+  privacyLevel     String    @default("public")
+  moderationStatus String    @default("pending")
+  moderationNote   String?
+  createdAt        DateTime  @default(now())
+  uploadedAt       DateTime?
+  deletedAt        DateTime?
+  profile          Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@map("photos")
 }
