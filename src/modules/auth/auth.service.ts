@@ -18,7 +18,7 @@ const OTP_EXPIRY_MINUTES = 5;
 
 export class AuthService {
   async register(dto: RegisterDTO): Promise<{ success: boolean; message: string }> {
-    const { email, fullName, phoneNumber } = dto;
+    const { email, fullName, phoneNumber, password } = dto;
 
     await this.checkOTPRateLimit(email);
 
@@ -28,6 +28,7 @@ export class AuthService {
       throw new Error('User already exists and is verified. Please login instead.');
     }
 
+    const passwordHash = await bcrypt.hash(password, 10);
     const otp = this.generateOTP();
     const otpHash = await bcrypt.hash(otp, 10);
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
@@ -38,6 +39,7 @@ export class AuthService {
         data: {
           fullName: fullName || user.fullName,
           phoneNumber: phoneNumber || user.phoneNumber,
+          passwordHash,
           otpHash,
           otpExpiry,
         },
@@ -50,6 +52,7 @@ export class AuthService {
           email,
           fullName,
           phoneNumber,
+          passwordHash,
           isVerified: false,
           otpHash,
           otpExpiry,
@@ -115,8 +118,8 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDTO): Promise<{ success: boolean; message: string }> {
-    const { email } = dto;
+  async login(dto: LoginDTO): Promise<{ success: boolean; otpSent: boolean }> {
+    const { email, password } = dto;
 
     await this.checkOTPRateLimit(email);
 
@@ -128,6 +131,17 @@ export class AuthService {
 
     if (!user.isVerified) {
       throw new Error('User not verified. Please complete registration first.');
+    }
+
+    if (!user.passwordHash) {
+      throw new Error('Password not set for this user. Please contact support.');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+      logger.warn('Invalid password attempt', { email });
+      throw new Error('Invalid email or password.');
     }
 
     const otp = this.generateOTP();
@@ -147,7 +161,7 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'OTP sent to your email. Please verify to login.',
+      otpSent: true,
     };
   }
 

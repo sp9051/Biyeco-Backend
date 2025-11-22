@@ -2,11 +2,12 @@ import { z } from 'zod';
 
 export const RegisterSchema = z.object({
   email: z.string().email('Invalid email address'),
-  fullName: z.string().min(1, 'Full name is required').optional(),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   phoneNumber: z
     .string()
     .regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format')
     .optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 export const VerifyOTPSchema = z.object({
@@ -16,6 +17,7 @@ export const VerifyOTPSchema = z.object({
 
 export const LoginSchema = z.object({
   email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password is required'),
 });
 
 export const RefreshTokenSchema = z.object({

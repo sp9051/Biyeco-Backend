@@ -50,7 +50,7 @@ export class AuthController {
 
       const result = await authService.login(dto);
 
-      return successResponse(res, result, result.message, 200);
+      return successResponse(res, result, 'OTP sent to your email. Please verify to login.', 200);
     } catch (error) {
       next(error);
     }

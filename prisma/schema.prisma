@@ -8,16 +8,17 @@ datasource db {
 }
 
 model User {
-  id          String    @id @default(uuid())
-  email       String    @unique
-  fullName    String?
-  phoneNumber String?
-  isVerified  Boolean   @default(false)
-  otpHash     String?
-  otpExpiry   DateTime?
-  sessions    Session[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  email        String    @unique
+  fullName     String?
+  phoneNumber  String?
+  passwordHash String?
+  isVerified   Boolean   @default(false)
+  otpHash      String?
+  otpExpiry    DateTime?
+  sessions     Session[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@map("users")
 }
