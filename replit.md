@@ -2,7 +2,7 @@
 
 ## Overview
 
-A secure, production-ready backend API for a matrimonial platform built with Node.js, Express, and TypeScript. The system implements email-based OTP authentication with JWT access tokens and rotating refresh tokens stored in Redis. It provides a foundation for building a matrimonial matching service with robust security, validation, and session management.
+A secure, production-ready backend API for a matrimonial platform built with Node.js, Express, and TypeScript. The system implements password + email OTP 2-step authentication with JWT access tokens and rotating refresh tokens stored in Redis. It includes a comprehensive profile management system with draft/publish workflow, step-by-step profile wizard, completeness tracking, and privacy controls.
 
 ## User Preferences
 
@@ -64,6 +64,7 @@ Preferred communication style: Simple, everyday language.
 **Route Organization**
 - `/api/health` - Health check endpoint
 - `/api/v1/auth/*` - Authentication endpoints (register, verify, login, refresh, logout, me)
+- `/api/v1/profiles/*` - Profile management endpoints (CRUD, step updates, publish/unpublish)
 - Modular route structure with separate controller, service, and DTO layers
 
 **Response Format**
@@ -107,9 +108,31 @@ Error: { success: false, error: { message, code?, details? } }
 - Active session retrieval
 
 **Email Service** (`email.service.ts`)
-- OTP email delivery (stub implementation)
+- Real Nodemailer SMTP integration
+- OTP email delivery with HTML templates
 - Welcome email delivery
 - Development mode OTP logging
+
+**Profile Service** (`profile.service.ts`)
+- Profile creation (draft state)
+- Step-by-step profile updates (7 distinct steps)
+- Profile publishing with validation
+- Profile unpublishing
+- Profile retrieval with masking
+- Soft delete support
+
+**Completeness Service** (`completeness.service.ts`)
+- Dynamic completeness calculation (0-100%)
+- Weighted scoring for each profile section
+- Publish readiness validation
+- Missing fields detection
+
+**Profile Permissions** (`profile.permissions.ts`)
+- Field-level masking based on viewer permissions
+- Owner/Guardian/Premium/Visitor access levels
+- Photo privacy filtering
+- Location coordinate protection
+- About section truncation for non-premium users
 
 ### Logging & Monitoring
 
@@ -141,7 +164,12 @@ Error: { success: false, error: { message, code?, details? } }
 **PostgreSQL Database**
 - Managed via Prisma ORM
 - Connection string in `DATABASE_URL` environment variable
-- Models: User (email, fullName, phoneNumber, isVerified, otpHash, otpExpiry), Session (userId, deviceId, ip, userAgent, revoked, lastSeenAt)
+- Models:
+  - User (email, fullName, phoneNumber, passwordHash, isVerified, otpHash, otpExpiry)
+  - Session (userId, deviceId, ip, userAgent, revoked, lastSeenAt)
+  - Profile (userId, displayName, headline, about, gender, dob, location, published, completeness)
+  - Photo (profileId, objectKey, url, fileSize, privacyLevel, moderationStatus)
+  - Preference (profileId, basic, lifestyle, education, community, location)
 
 **Redis Cache**
 - ioredis client with connection retry logic
@@ -183,6 +211,11 @@ Required configuration:
 - `JWT_REFRESH_SECRET` - Refresh token signing key (min 32 chars)
 - `JWT_ACCESS_EXPIRY` - Access token expiry (default: 15m)
 - `JWT_REFRESH_EXPIRY` - Refresh token expiry (default: 7d)
+- `EMAIL_HOST` - SMTP server host (e.g., smtp.gmail.com)
+- `EMAIL_PORT` - SMTP server port (default: 587)
+- `EMAIL_USER` - SMTP authentication username
+- `EMAIL_PASS` - SMTP authentication password
+- `EMAIL_FROM` - Email sender address
 - `NODE_ENV` - Environment (development/production/test)
 - `PORT` - Server port (default: 3000)
 - `LOG_LEVEL` - Winston log level (default: info)
@@ -191,10 +224,12 @@ Required configuration:
 ### Future Integration Points
 
 **Email Service Provider**
-- Current implementation is a stub logging to console
-- Needs integration with SendGrid, AWS SES, or similar
+- Real Nodemailer implementation with SMTP support
+- Configurable via environment variables (EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS)
+- HTML email templates for OTP and welcome emails
 - Methods: `sendOTP()`, `sendWelcomeEmail()`
 
 **OpenAPI Documentation**
-- OpenAPI spec referenced in `AUTH_MODULE_README.md`
-- File: `openapi-auth.yaml` (mentioned but not present in repository)
+- Authentication API: `openapi-auth.yaml`
+- Profile API: `openapi-profile.yaml`
+- Comprehensive documentation for all endpoints with examples

@@ -17,6 +17,7 @@ model User {
   otpHash      String?
   otpExpiry    DateTime?
   sessions     Session[]
+  profile      Profile?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -35,4 +36,54 @@ model Session {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+}
+
+model Profile {
+  id           String      @id @default(uuid())
+  userId       String      @unique
+  displayName  String
+  headline     String?
+  about        String?
+  gender       String?
+  dob          DateTime?
+  location     Json?
+  published    Boolean     @default(false)
+  completeness Int         @default(0)
+  photos       Photo[]
+  preferences  Preference?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Photo {
+  id               String   @id @default(uuid())
+  profileId        String
+  objectKey        String?
+  url              String?
+  fileSize         Int?
+  privacyLevel     String   @default("public")
+  moderationStatus String   @default("pending")
+  createdAt        DateTime @default(now())
+  profile          Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("photos")
+}
+
+model Preference {
+  id        String   @id @default(uuid())
+  profileId String   @unique
+  basic     Json?
+  lifestyle Json?
+  education Json?
+  community Json?
+  location  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("preferences")
 }
