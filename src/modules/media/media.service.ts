@@ -1,0 +1,269 @@
+import { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'crypto';
+import { CreateUploadUrlDTO } from './upload.dto.js';
+import { s3Service } from './s3.service.js';
+import { cloudinaryService } from './cloudinary.service.js';
+import { env } from '../../config/env.js';
+import { logger } from '../../utils/logger.js';
+import { localStorageService } from './local/local.storage.service.js';
+
+const prisma = new PrismaClient();
+
+export interface UploadUrlResponse {
+  uploadUrl: string;
+  objectKey: string;
+  expiresIn: number;
+  uploadMethod: 'PUT' | 'POST';
+  photoId: string;
+}
+
+export interface PhotoMetadata {
+  id: string;
+  profileId: string;
+  objectKey: string | null;
+  url: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  privacyLevel: string;
+  moderationStatus: string;
+  moderationNote: string | null;
+  createdAt: Date;
+  uploadedAt: Date | null;
+}
+
+export class MediaService {
+  async createUploadUrl(dto: CreateUploadUrlDTO, requesterId: string): Promise<UploadUrlResponse> {
+    const { profileId, filename, mimeType, fileSize, privacyLevel } = dto;
+
+    await this.validateUploadRequest(dto);
+
+    await this.authorizeProfileOwner(profileId, requesterId);
+
+    const sanitizedFilename = this.sanitizeFilename(filename);
+    const objectKey = this.generateObjectKey(profileId, sanitizedFilename);
+
+    const photo = await prisma.photo.create({
+      data: {
+        profileId,
+        objectKey,
+        fileSize,
+        mimeType,
+        privacyLevel,
+        moderationStatus: 'pending',
+      },
+    });
+
+    logger.info('Photo metadata created for upload', {
+      photoId: photo.id,
+      profileId,
+      objectKey,
+      requesterId,
+    });
+
+    const uploadResult = await this.generateSignedUploadUrl(objectKey, mimeType, fileSize);
+
+    await this.enqueueModerationJob(photo.id, objectKey, profileId);
+
+    return {
+      uploadUrl: uploadResult.url,
+      objectKey,
+      expiresIn: env.UPLOAD_URL_EXPIRY_SECONDS,
+      uploadMethod: env.UPLOAD_PROVIDER === 's3' ? 'PUT' : 'POST',
+      photoId: photo.id,
+    };
+  }
+
+  async uploadFile(photoId: string, buffer: Buffer): Promise<PhotoMetadata> {
+    const photo = await prisma.photo.findUnique({ where: { id: photoId } });
+    if (!photo) throw new Error('Photo not found');
+    if (!photo.objectKey) throw new Error('Invalid photo objectKey');
+
+    const url = await localStorageService.saveFile(photo.objectKey, buffer);
+
+    await prisma.photo.update({ where: { id: photoId }, data: { uploadedAt: new Date(), url } });
+
+    return this.getPhotoById(photoId);
+  }
+
+  async getPhotoById(photoId: string, requesterId?: string): Promise<PhotoMetadata | null> {
+    const photo = await prisma.photo.findUnique({
+      where: { id: photoId },
+      include: { profile: true },
+    });
+
+    if (!photo) {
+      return null;
+    }
+
+    const canView = await this.checkPhotoViewPermission(photo, requesterId);
+
+    if (!canView) {
+      return null;
+    }
+
+    return this.sanitizePhotoMetadata(photo);
+  }
+
+  async deletePhoto(photoId: string, requesterId: string): Promise<void> {
+    const photo = await prisma.photo.findUnique({
+      where: { id: photoId },
+      include: { profile: true },
+    });
+
+    if (!photo) {
+      throw new Error('Photo not found');
+    }
+
+    await this.authorizeProfileOwner(photo.profileId, requesterId);
+
+    await prisma.photo.update({
+      where: { id: photoId },
+      data: { deletedAt: new Date() },
+    });
+
+    logger.info('Photo marked for deletion', { photoId, requesterId });
+
+    if (photo.objectKey) {
+      await this.enqueueDeletionJob(photo.objectKey);
+    }
+  }
+
+  async listProfilePhotos(profileId: string, requesterId?: string): Promise<PhotoMetadata[]> {
+    const photos = await prisma.photo.findMany({
+      where: {
+        profileId,
+        deletedAt: null,
+      },
+      include: { profile: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const filteredPhotos = await Promise.all(
+      photos.map(async (photo) => {
+        const canView = await this.checkPhotoViewPermission(photo, requesterId);
+        return canView ? this.sanitizePhotoMetadata(photo) : null;
+      })
+    );
+
+    return filteredPhotos.filter((p): p is PhotoMetadata => p !== null);
+  }
+
+  private async validateUploadRequest(dto: CreateUploadUrlDTO): Promise<void> {
+    if (!env.ALLOWED_MIME_TYPES.includes(dto.mimeType)) {
+      throw new Error(`MIME type ${dto.mimeType} is not allowed`);
+    }
+
+    if (dto.fileSize > env.MAX_UPLOAD_BYTES) {
+      throw new Error(
+        `File size ${dto.fileSize} exceeds maximum allowed ${env.MAX_UPLOAD_BYTES} bytes`
+      );
+    }
+  }
+
+  private async authorizeProfileOwner(profileId: string, userId: string): Promise<void> {
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+      select: { userId: true },
+    });
+
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    if (profile.userId !== userId) {
+      throw new Error('Unauthorized: You can only upload photos to your own profile');
+    }
+  }
+
+  private generateObjectKey(profileId: string, filename: string): string {
+    const uuid = randomUUID();
+    return `profiles/${profileId}/${uuid}_${filename}`;
+  }
+
+  private sanitizeFilename(filename: string): string {
+    return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
+  private async generateSignedUploadUrl(
+    objectKey: string,
+    contentType: string,
+    fileSize: number
+  ): Promise<{ url: string }> {
+    if (env.UPLOAD_PROVIDER === 'local') {
+      const result = await localStorageService.createLocalUploadUrl(objectKey);
+      return { url: result.url };
+    }
+    if (env.UPLOAD_PROVIDER === 's3') {
+      const result = await s3Service.createPresignedPutUrl({
+        bucket: env.AWS_S3_BUCKET || '',
+        key: objectKey,
+        contentType,
+        expiresSeconds: env.UPLOAD_URL_EXPIRY_SECONDS,
+      });
+
+      return { url: result.url };
+    } else {
+      const result = await cloudinaryService.createSignedUploadParams({
+        publicId: objectKey,
+        folder: 'profiles',
+        maxBytes: fileSize,
+      });
+
+      return { url: result.uploadUrl };
+    }
+  }
+
+  private async checkPhotoViewPermission(photo: any, requesterId?: string): Promise<boolean> {
+    if (photo.moderationStatus !== 'approved' && photo.profile.userId !== requesterId) {
+      return false;
+    }
+
+    if (photo.privacyLevel === 'public') {
+      return true;
+    }
+
+    if (!requesterId) {
+      return false;
+    }
+
+    if (photo.profile.userId === requesterId) {
+      return true;
+    }
+
+    if (photo.privacyLevel === 'private') {
+      return false;
+    }
+
+    return false;
+  }
+
+  private sanitizePhotoMetadata(photo: any): PhotoMetadata {
+    return {
+      id: photo.id,
+      profileId: photo.profileId,
+      objectKey: photo.objectKey,
+      url: photo.url,
+      fileSize: photo.fileSize,
+      mimeType: photo.mimeType,
+      privacyLevel: photo.privacyLevel,
+      moderationStatus: photo.moderationStatus,
+      moderationNote: photo.moderationNote,
+      createdAt: photo.createdAt,
+      uploadedAt: photo.uploadedAt,
+    };
+  }
+
+  private async enqueueModerationJob(
+    photoId: string,
+    objectKey: string,
+    profileId: string
+  ): Promise<void> {
+    logger.info('Enqueuing moderation job (stub)', { photoId, objectKey, profileId });
+  }
+
+  private async enqueueDeletionJob(objectKey: string): Promise<void> {
+    logger.info('Enqueuing deletion job (stub)', { objectKey });
+  }
+}
+
+export const mediaService = new MediaService();

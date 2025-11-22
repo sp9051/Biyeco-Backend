@@ -8,18 +8,21 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  fullName     String?
-  phoneNumber  String?
-  passwordHash String?
-  isVerified   Boolean   @default(false)
-  otpHash      String?
-  otpExpiry    DateTime?
-  sessions     Session[]
-  profile      Profile?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id              String        @id @default(uuid())
+  email           String        @unique
+  fullName        String?
+  phoneNumber     String?
+  passwordHash    String?
+  isVerified      Boolean       @default(false)
+  otpHash         String?
+  otpExpiry       DateTime?
+  sessions        Session[]
+  profile         Profile?
+  savedSearches   SavedSearch[]
+  interestsSent   Interest[]    @relation("InterestFrom")
+  interestsReceived Interest[]  @relation("InterestTo")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@map("users")
 }
@@ -56,19 +59,27 @@ model Profile {
   deletedAt    DateTime?
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([published])
+  @@index([gender])
+  @@index([createdAt])
+  @@index([location])
   @@map("profiles")
 }
 
 model Photo {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   profileId        String
   objectKey        String?
   url              String?
   fileSize         Int?
-  privacyLevel     String   @default("public")
-  moderationStatus String   @default("pending")
-  createdAt        DateTime @default(now())
-  profile          Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  mimeType         String?
+  privacyLevel     String    @default("public")
+  moderationStatus String    @default("pending")
+  moderationNote   String?
+  createdAt        DateTime  @default(now())
+  uploadedAt       DateTime?
+  deletedAt        DateTime?
+  profile          Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@map("photos")
 }
@@ -86,4 +97,34 @@ model Preference {
   profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@map("preferences")
+}
+
+model SavedSearch {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  filters   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_searches")
+}
+
+model Interest {
+  id         String   @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  fromUser User @relation("InterestFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("InterestTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+  @@map("interests")
 }
