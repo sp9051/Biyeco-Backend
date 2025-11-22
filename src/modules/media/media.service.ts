@@ -5,6 +5,7 @@ import { s3Service } from './s3.service.js';
 import { cloudinaryService } from './cloudinary.service.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
+import { localStorageService } from './local/local.storage.service.js';
 
 const prisma = new PrismaClient();
 
@@ -70,6 +71,18 @@ export class MediaService {
       uploadMethod: env.UPLOAD_PROVIDER === 's3' ? 'PUT' : 'POST',
       photoId: photo.id,
     };
+  }
+
+  async uploadFile(photoId: string, buffer: Buffer): Promise<PhotoMetadata> {
+    const photo = await prisma.photo.findUnique({ where: { id: photoId } });
+    if (!photo) throw new Error('Photo not found');
+    if (!photo.objectKey) throw new Error('Invalid photo objectKey');
+
+    const url = await localStorageService.saveFile(photo.objectKey, buffer);
+
+    await prisma.photo.update({ where: { id: photoId }, data: { uploadedAt: new Date(), url } });
+
+    return this.getPhotoById(photoId);
   }
 
   async getPhotoById(photoId: string, requesterId?: string): Promise<PhotoMetadata | null> {
@@ -141,7 +154,9 @@ export class MediaService {
     }
 
     if (dto.fileSize > env.MAX_UPLOAD_BYTES) {
-      throw new Error(`File size ${dto.fileSize} exceeds maximum allowed ${env.MAX_UPLOAD_BYTES} bytes`);
+      throw new Error(
+        `File size ${dto.fileSize} exceeds maximum allowed ${env.MAX_UPLOAD_BYTES} bytes`
+      );
     }
   }
 
@@ -174,6 +189,10 @@ export class MediaService {
     contentType: string,
     fileSize: number
   ): Promise<{ url: string }> {
+    if (env.UPLOAD_PROVIDER === 'local') {
+      const result = await localStorageService.createLocalUploadUrl(objectKey);
+      return { url: result.url };
+    }
     if (env.UPLOAD_PROVIDER === 's3') {
       const result = await s3Service.createPresignedPutUrl({
         bucket: env.AWS_S3_BUCKET || '',
@@ -234,7 +253,11 @@ export class MediaService {
     };
   }
 
-  private async enqueueModerationJob(photoId: string, objectKey: string, profileId: string): Promise<void> {
+  private async enqueueModerationJob(
+    photoId: string,
+    objectKey: string,
+    profileId: string
+  ): Promise<void> {
     logger.info('Enqueuing moderation job (stub)', { photoId, objectKey, profileId });
   }
 

@@ -11,27 +11,57 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.string().default('3000').transform(Number).refine((val) => !Number.isNaN(val), {
-    message: 'PORT must be a valid number',
-  }),
+  PORT: z
+    .string()
+    .default('3000')
+    .transform(Number)
+    .refine((val) => !Number.isNaN(val), {
+      message: 'PORT must be a valid number',
+    }),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
   ALLOWED_ORIGINS: z.string().transform((val) => val.split(',').map((origin) => origin.trim())),
-  
-  UPLOAD_PROVIDER: z.enum(['s3', 'cloudinary']).default('s3'),
-  MAX_UPLOAD_BYTES: z.string().default('5242880').transform(Number),
-  ALLOWED_MIME_TYPES: z.string().default('image/jpeg,image/png,image/webp,image/avif').transform((val) => val.split(',').map((type) => type.trim())),
-  UPLOAD_URL_EXPIRY_SECONDS: z.string().default('300').transform(Number),
-  
+
+  // UPLOAD_PROVIDER: z.enum(['s3', 'cloudinary']).default('s3'),
+  // MAX_UPLOAD_BYTES: z.string().default('5242880').transform(Number),
+  // ALLOWED_MIME_TYPES: z.string().default('image/jpeg,image/png,image/webp,image/avif').transform((val) => val.split(',').map((type) => type.trim())),
+  // UPLOAD_URL_EXPIRY_SECONDS: z.string().default('300').transform(Number),
+
+  // AWS_S3_BUCKET: z.string().optional(),
+  // AWS_REGION: z.string().optional(),
+  // AWS_ACCESS_KEY_ID: z.string().optional(),
+  // AWS_SECRET_ACCESS_KEY: z.string().optional(),
+
+  // CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  // CLOUDINARY_API_KEY: z.string().optional(),
+  // CLOUDINARY_API_SECRET: z.string().optional(),
+
+  // MODERATION_SECRET: z.string().min(32).optional(),
+
+  // Upload config
+  UPLOAD_PROVIDER: z.enum(['local', 's3', 'cloudinary']).default('local'),
+  MAX_UPLOAD_BYTES: z.coerce.number().default(5242880),
+  ALLOWED_MIME_TYPES: z
+    .string()
+    .default('')
+    .transform((v) => v.split(',')),
+  UPLOAD_URL_EXPIRY_SECONDS: z.coerce.number().default(300),
+
+  // AWS
   AWS_S3_BUCKET: z.string().optional(),
   AWS_REGION: z.string().optional(),
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
-  
+
+  // Cloudinary
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
-  
+
+  // Moderation
   MODERATION_SECRET: z.string().min(32).optional(),
+  
+  // Search & Discovery
+  MAX_QUERY_COST: z.coerce.number().default(30),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -41,7 +71,9 @@ function validateEnv(): Env {
     return envSchema.parse(process.env);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const missingVars = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join('\n');
+      const missingVars = error.errors
+        .map((err) => `${err.path.join('.')}: ${err.message}`)
+        .join('\n');
       throw new Error(`Environment validation failed:\n${missingVars}`);
     }
     throw error;

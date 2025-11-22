@@ -23,6 +23,17 @@ export class MediaController {
       next(error);
     }
   }
+  async uploadFile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { photoId } = req.body;
+      if (!req.file) throw new Error('No file uploaded');
+
+      const result = await mediaService.uploadFile(photoId, req.file.buffer);
+      return sendSuccess(res, result, 'File uploaded', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
 
   async getPhotoById(req: Request, res: Response, next: NextFunction) {
     try {

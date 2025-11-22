@@ -8,18 +8,19 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
+  id           String        @id @default(uuid())
+  email        String        @unique
   fullName     String?
   phoneNumber  String?
   passwordHash String?
-  isVerified   Boolean   @default(false)
+  isVerified   Boolean       @default(false)
   otpHash      String?
   otpExpiry    DateTime?
   sessions     Session[]
   profile      Profile?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  savedSearches SavedSearch[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@map("users")
 }
@@ -56,6 +57,10 @@ model Profile {
   deletedAt    DateTime?
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([published])
+  @@index([gender])
+  @@index([createdAt])
+  @@index([location])
   @@map("profiles")
 }
 
@@ -90,4 +95,16 @@ model Preference {
   profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@map("preferences")
+}
+
+model SavedSearch {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  filters   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_searches")
 }
