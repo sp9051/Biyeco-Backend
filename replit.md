@@ -65,6 +65,7 @@ Preferred communication style: Simple, everyday language.
 - `/api/health` - Health check endpoint
 - `/api/v1/auth/*` - Authentication endpoints (register, verify, login, refresh, logout, me)
 - `/api/v1/profiles/*` - Profile management endpoints (CRUD, step updates, publish/unpublish)
+- `/api/v1/chats/*` - Chat & messaging endpoints (threads, messages, read receipts)
 - Modular route structure with separate controller, service, and DTO layers
 
 **Response Format**
@@ -134,6 +135,14 @@ Error: { success: false, error: { message, code?, details? } }
 - Location coordinate protection
 - About section truncation for non-premium users
 
+**Chat Service** (`chat.service.ts`)
+- Thread management with mutual match validation
+- Real-time message persistence
+- Cursor-based message pagination
+- Read receipt tracking
+- Profanity filtering with metadata
+- Participant authorization checks
+
 ### Logging & Monitoring
 
 **Winston Logger**
@@ -170,6 +179,8 @@ Error: { success: false, error: { message, code?, details? } }
   - Profile (userId, displayName, headline, about, gender, dob, location, published, completeness)
   - Photo (profileId, objectKey, url, fileSize, privacyLevel, moderationStatus)
   - Preference (profileId, basic, lifestyle, education, community, location)
+  - Thread (participantIds, createdAt, updatedAt)
+  - Message (threadId, senderId, content, metadata, deliveredAt, readAt)
 
 **Redis Cache**
 - ioredis client with connection retry logic
@@ -192,6 +203,8 @@ Error: { success: false, error: { message, code?, details? } }
 - `cookie-parser` - Cookie parsing
 - `winston` - Logging
 - `dotenv` - Environment variable loading
+- `socket.io` - Real-time WebSocket server
+- `socket.io-client` - Socket.IO client (for testing)
 
 **Development Dependencies**
 - `typescript` - Type system
@@ -229,7 +242,21 @@ Required configuration:
 - HTML email templates for OTP and welcome emails
 - Methods: `sendOTP()`, `sendWelcomeEmail()`
 
+**Real-time Messaging (Socket.IO)**
+- Socket.IO v4 integration for real-time chat
+- JWT authentication handshake
+- Per-user rooms for message delivery
+- Token bucket rate limiting (10 messages per 10 seconds)
+- Events: `join_thread`, `send_message`, `typing`, `read_receipt`
+- XSS prevention through HTML escaping
+- Profanity filtering with metadata flagging
+
 **OpenAPI Documentation**
 - Authentication API: `openapi-auth.yaml`
 - Profile API: `openapi-profile.yaml`
+- Chat API: `openapi.chat.yml`
 - Comprehensive documentation for all endpoints with examples
+
+**Testing Documentation**
+- Chat Module: `CHAT_MODULE_README.md` - Complete testing guide for REST and Socket.IO features
+- Discovery/Search Module: `DISCOVERY_SEARCH_MODULE_README.md` - Testing guide for discovery features
