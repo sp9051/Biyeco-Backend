@@ -123,6 +123,7 @@ export class ChatService {
 
   async createThread(params: CreateThreadParams): Promise<any> {
     const { participants } = params;
+    console.log(participants)
 
     if (participants.length < 2) {
       throw new Error('Thread must have at least 2 participants');
@@ -182,11 +183,11 @@ export class ChatService {
       lastMsgAt: thread.lastMsgAt,
       lastMessage: thread.messages[0]
         ? {
-            id: thread.messages[0].id,
-            content: thread.messages[0].content,
-            fromUserId: thread.messages[0].fromUserId,
-            createdAt: thread.messages[0].createdAt,
-          }
+          id: thread.messages[0].id,
+          content: thread.messages[0].content,
+          fromUserId: thread.messages[0].fromUserId,
+          createdAt: thread.messages[0].createdAt,
+        }
         : undefined,
       createdAt: thread.createdAt,
       updatedAt: thread.updatedAt,
@@ -337,19 +338,38 @@ export class ChatService {
       },
     });
 
-    if (mutualMatch) {
-      const reverseMatch = await prisma.interest.findFirst({
-        where: {
-          fromUserId: mutualMatch.toUserId,
-          toUserId: mutualMatch.fromUserId,
-          status: 'accepted',
-        },
-      });
+    // if (mutualMatch) {
+    //   const reverseMatch = await prisma.interest.findFirst({
+    //     where: {
+    //       fromUserId: mutualMatch.toUserId,
+    //       toUserId: mutualMatch.fromUserId,
+    //       status: 'accepted',
+    //     },
+    //   });
+    console.log("mutualMatch", mutualMatch);
 
-      return !!reverseMatch;
-    }
 
-    return false;
+    return mutualMatch !== null;
+    // }
+
+
+
+    // const interest = await prisma.interest.findFirst({
+    //   where: {
+    //     OR: [
+    //       { fromUserId: userA, toUserId: userB, status: 'accepted' },
+    //       { fromUserId: userB, toUserId: userA, status: 'accepted' },
+    //     ]
+    //   }
+    // });
+
+    // console.log(interest);
+
+    // return interest !== null;
+
+
+
+    // return false;
   }
 
   async canUserChat(userA: string, userB: string): Promise<boolean> {

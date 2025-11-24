@@ -31,6 +31,7 @@ export async function authenticateToken(
 
   try {
     const payload: JWTPayload = await tokenService.verifyAccessToken(token);
+    console.log("Decoded JWT payload:", payload);
 
     const isSessionValid = await sessionService.isSessionValid(payload.sessionId);
 

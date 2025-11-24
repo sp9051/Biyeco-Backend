@@ -17,6 +17,11 @@ import searchRoutes from './modules/search/search.routes.js';
 import connectionsRoutes from './modules/connections/connections.routes.js';
 import path from 'path';
 
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import { attachChat } from './modules/chat/chat.gateway.js';
+import chatRoutes from './modules/chat/chat.routes.js';
+
 export function createApp() {
   const app = express();
 
@@ -32,6 +37,20 @@ export function createApp() {
 
     next();
   });
+
+  // Create HTTP server (if not already created)
+  const httpServer = createServer(app);
+  // Initialize Socket.IO
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5000'],
+      credentials: true,
+    },
+  });
+  // Attach chat gateway
+  attachChat(io);
+
+
 
   app.use(helmetMiddleware);
   app.use(corsMiddleware);
@@ -51,6 +70,9 @@ export function createApp() {
   app.use('/api/v1/search', searchRoutes);
   app.use('/api/v1/connections', connectionsRoutes);
   app.use('/uploads', express.static(path.resolve('uploads')));
+
+  // Register REST routes
+  app.use('/api/v1/chats', chatRoutes);
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({

@@ -62,6 +62,11 @@ export class ChatController {
   async createThread(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.userId;
+      console.log('ReqUserIdPrints: ', req.userId);
+
+      // console.log('ReqPrints: ', req);
+
+
 
       if (!userId) {
         sendError(res, 'Unauthorized', 401);
@@ -69,10 +74,14 @@ export class ChatController {
       }
 
       const input = createThreadSchema.parse(req.body);
+      logger.error('ParticipantsPrintsBeforePush: ', input.participantIds);
+
 
       if (!input.participantIds.includes(userId)) {
         input.participantIds.push(userId);
       }
+      logger.error('ParticipantsPrintsAfterPush: ', input.participantIds);
+
 
       const thread = await chatService.createThread({
         participants: input.participantIds,
