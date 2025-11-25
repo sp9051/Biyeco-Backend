@@ -77,6 +77,54 @@ model Profile {
   location     Json?
   published    Boolean     @default(false)
   completeness Int         @default(0)
+
+  // About Me
+  description      String?
+  languagesKnown   String[]
+
+  // Demographics
+  height           Int?
+  weight           Int?
+  highestEducation String?
+  fieldOfStudy     String?
+  profession       String?
+  religion         String?
+  ancestralHome    String?
+  division         String?
+
+  // Family
+  maritalStatus    String?
+  fatherOccupation String?
+  motherOccupation String?
+  siblingsCount    Int?
+  childrenCount    Int?
+  childrenStatus   String?
+
+  // Lifestyle & Interests
+  hobbies          String[]
+  dietPreference   String?
+  smokingHabit     String?
+  drinkingHabit    String?
+  exerciseRoutine  String?
+  petPreference    String?
+  livingSituation  String?
+
+  // Partner Preferences
+  prefAgeRangeFrom       Int?
+  prefAgeRangeTo         Int?
+  prefHeightFrom         Int?
+  prefHeightTo           Int?
+  prefLocation           Json?
+  prefEducation          String?
+  prefProfession         String?
+  prefReligion           String?
+  prefMaritalStatus      String?
+  prefChildrenCount      Int?
+  prefChildrenStatus     String?
+  prefDietPreference     String?
+  prefSmokingHabit       String?
+  prefDrinkingHabit      String?
+
   photos       Photo[]
   preferences  Preference?
   createdAt    DateTime    @default(now())

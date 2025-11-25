@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { profileService } from './profile.service.js';
 import { profilePermissions } from './profile.permissions.js';
-import { CreateProfileDTO, StepUpdateDTO } from './profile.dto.js';
+import { CreateProfileDTO, StepUpdateDTO, AboutMeDTO, DemographicsDTO, FamilyDTO, LifestyleDTO, PartnerPreferenceDTO } from './profile.dto.js';
 import { RequesterContext } from './profile.types.js';
 import { sendSuccess } from '../../utils/response.js';
 import { logger } from '../../utils/logger.js';
@@ -106,6 +106,76 @@ export class ProfileController {
       await profileService.softDeleteProfile(id, userId);
 
       return sendSuccess(res, null, 'Profile deleted successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateAboutMe(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).userId;
+      const dto: AboutMeDTO = req.body;
+
+      const profile = await profileService.updateAboutMe(id, userId, dto);
+
+      return sendSuccess(res, profile, 'About me updated successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateDemographics(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).userId;
+      const dto: DemographicsDTO = req.body;
+
+      const profile = await profileService.updateDemographics(id, userId, dto);
+
+      return sendSuccess(res, profile, 'Demographics updated successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateFamilyDetails(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).userId;
+      const dto: FamilyDTO = req.body;
+
+      const profile = await profileService.updateFamilyDetails(id, userId, dto);
+
+      return sendSuccess(res, profile, 'Family details updated successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateLifestyle(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).userId;
+      const dto: LifestyleDTO = req.body;
+
+      const profile = await profileService.updateLifestyle(id, userId, dto);
+
+      return sendSuccess(res, profile, 'Lifestyle updated successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updatePartnerPreferences(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).userId;
+      const dto: PartnerPreferenceDTO = req.body;
+
+      const profile = await profileService.updatePartnerPreferences(id, userId, dto);
+
+      return sendSuccess(res, profile, 'Partner preferences updated successfully', 200);
     } catch (error) {
       next(error);
     }

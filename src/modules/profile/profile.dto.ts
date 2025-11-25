@@ -111,6 +111,60 @@ export const UpdatePreferencesStepSchema = z.object({
   }),
 });
 
+// Expanded Profile Wizard Schemas
+export const aboutMeSchema = z.object({
+  headline: z.string().optional(),
+  description: z.string().optional(),
+  languagesKnown: z.array(z.string()).optional(),
+});
+
+export const demographicsSchema = z.object({
+  height: z.number().optional(),
+  weight: z.number().optional(),
+  highestEducation: z.string().optional(),
+  fieldOfStudy: z.string().optional(),
+  profession: z.string().optional(),
+  religion: z.string().optional(),
+  ancestralHome: z.string().optional(),
+  division: z.string().optional(),
+});
+
+export const familySchema = z.object({
+  maritalStatus: z.string().optional(),
+  fatherOccupation: z.string().optional(),
+  motherOccupation: z.string().optional(),
+  siblingsCount: z.number().optional(),
+  childrenCount: z.number().optional(),
+  childrenStatus: z.string().optional(),
+});
+
+export const lifestyleSchema = z.object({
+  hobbies: z.array(z.string()).optional(),
+  dietPreference: z.string().optional(),
+  smokingHabit: z.string().optional(),
+  drinkingHabit: z.string().optional(),
+  exerciseRoutine: z.string().optional(),
+  petPreference: z.string().optional(),
+  livingSituation: z.string().optional(),
+});
+
+export const partnerPreferenceSchema = z.object({
+  prefAgeRangeFrom: z.number().optional(),
+  prefAgeRangeTo: z.number().optional(),
+  prefHeightFrom: z.number().optional(),
+  prefHeightTo: z.number().optional(),
+  prefLocation: z.any().optional(),
+  prefEducation: z.string().optional(),
+  prefProfession: z.string().optional(),
+  prefReligion: z.string().optional(),
+  prefMaritalStatus: z.string().optional(),
+  prefChildrenCount: z.number().optional(),
+  prefChildrenStatus: z.string().optional(),
+  prefDietPreference: z.string().optional(),
+  prefSmokingHabit: z.string().optional(),
+  prefDrinkingHabit: z.string().optional(),
+});
+
 export const StepUpdateSchema = z.discriminatedUnion('step', [
   z.object({ step: z.literal('about'), data: UpdateAboutStepSchema }),
   z.object({ step: z.literal('demographics'), data: UpdateDemographicsStepSchema }),
@@ -130,3 +184,10 @@ export type UpdateLocationStepDTO = z.infer<typeof UpdateLocationStepSchema>;
 export type UpdatePhotosMetadataStepDTO = z.infer<typeof UpdatePhotosMetadataStepSchema>;
 export type UpdatePreferencesStepDTO = z.infer<typeof UpdatePreferencesStepSchema>;
 export type StepUpdateDTO = z.infer<typeof StepUpdateSchema>;
+
+// Expanded Profile Wizard Types
+export type AboutMeDTO = z.infer<typeof aboutMeSchema>;
+export type DemographicsDTO = z.infer<typeof demographicsSchema>;
+export type FamilyDTO = z.infer<typeof familySchema>;
+export type LifestyleDTO = z.infer<typeof lifestyleSchema>;
+export type PartnerPreferenceDTO = z.infer<typeof partnerPreferenceSchema>;
