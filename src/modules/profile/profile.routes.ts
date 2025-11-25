@@ -6,11 +6,6 @@ import { validate } from 'middleware/validate.js';
 import {
   CreateProfileSchema,
   StepUpdateSchema,
-  aboutMeSchema,
-  demographicsSchema,
-  familySchema,
-  lifestyleSchema,
-  partnerPreferenceSchema,
 } from './profile.dto.js';
 
 const router = Router();
@@ -42,41 +37,5 @@ router.post(
 );
 
 router.delete('/:id', authenticateToken, profileController.deleteProfile.bind(profileController));
-
-// Expanded Profile Wizard Routes
-router.patch(
-  '/:id/about',
-  authenticateToken,
-  validate(aboutMeSchema),
-  profileController.updateAboutMe.bind(profileController)
-);
-
-router.patch(
-  '/:id/demographics',
-  authenticateToken,
-  validate(demographicsSchema),
-  profileController.updateDemographics.bind(profileController)
-);
-
-router.patch(
-  '/:id/family',
-  authenticateToken,
-  validate(familySchema),
-  profileController.updateFamilyDetails.bind(profileController)
-);
-
-router.patch(
-  '/:id/lifestyle',
-  authenticateToken,
-  validate(lifestyleSchema),
-  profileController.updateLifestyle.bind(profileController)
-);
-
-router.patch(
-  '/:id/preferences',
-  authenticateToken,
-  validate(partnerPreferenceSchema),
-  profileController.updatePartnerPreferences.bind(profileController)
-);
 
 export default router;

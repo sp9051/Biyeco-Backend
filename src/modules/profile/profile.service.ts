@@ -5,11 +5,6 @@ import {
   StepUpdateDTO,
   UpdatePhotosMetadataStepDTO,
   UpdatePreferencesStepDTO,
-  AboutMeDTO,
-  DemographicsDTO,
-  FamilyDTO,
-  LifestyleDTO,
-  PartnerPreferenceDTO,
 } from './profile.dto.js';
 import { completenessService } from './completeness.service.js';
 import { profilePermissions } from './profile.permissions.js';
@@ -259,6 +254,109 @@ export class ProfileService {
         });
         break;
 
+      case 'about-me-expanded':
+        const aboutMeUpdate: any = {};
+        if (stepData.data.headline !== undefined) aboutMeUpdate.headline = stepData.data.headline;
+        if (stepData.data.description !== undefined) aboutMeUpdate.description = stepData.data.description;
+        if (stepData.data.languagesKnown !== undefined) aboutMeUpdate.languagesKnown = stepData.data.languagesKnown;
+
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: aboutMeUpdate,
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'demographics-expanded':
+        const demographicsUpdate: any = {};
+        if (stepData.data.height !== undefined) demographicsUpdate.height = stepData.data.height;
+        if (stepData.data.weight !== undefined) demographicsUpdate.weight = stepData.data.weight;
+        if (stepData.data.highestEducation !== undefined) demographicsUpdate.highestEducation = stepData.data.highestEducation;
+        if (stepData.data.fieldOfStudy !== undefined) demographicsUpdate.fieldOfStudy = stepData.data.fieldOfStudy;
+        if (stepData.data.profession !== undefined) demographicsUpdate.profession = stepData.data.profession;
+        if (stepData.data.religion !== undefined) demographicsUpdate.religion = stepData.data.religion;
+        if (stepData.data.ancestralHome !== undefined) demographicsUpdate.ancestralHome = stepData.data.ancestralHome;
+        if (stepData.data.division !== undefined) demographicsUpdate.division = stepData.data.division;
+
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: demographicsUpdate,
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'family-expanded':
+        const familyUpdate: any = {};
+        if (stepData.data.maritalStatus !== undefined) familyUpdate.maritalStatus = stepData.data.maritalStatus;
+        if (stepData.data.fatherOccupation !== undefined) familyUpdate.fatherOccupation = stepData.data.fatherOccupation;
+        if (stepData.data.motherOccupation !== undefined) familyUpdate.motherOccupation = stepData.data.motherOccupation;
+        if (stepData.data.siblingsCount !== undefined) familyUpdate.siblingsCount = stepData.data.siblingsCount;
+        if (stepData.data.childrenCount !== undefined) familyUpdate.childrenCount = stepData.data.childrenCount;
+        if (stepData.data.childrenStatus !== undefined) familyUpdate.childrenStatus = stepData.data.childrenStatus;
+
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: familyUpdate,
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'lifestyle-expanded':
+        const lifestyleUpdate: any = {};
+        if (stepData.data.hobbies !== undefined) lifestyleUpdate.hobbies = stepData.data.hobbies;
+        if (stepData.data.dietPreference !== undefined) lifestyleUpdate.dietPreference = stepData.data.dietPreference;
+        if (stepData.data.smokingHabit !== undefined) lifestyleUpdate.smokingHabit = stepData.data.smokingHabit;
+        if (stepData.data.drinkingHabit !== undefined) lifestyleUpdate.drinkingHabit = stepData.data.drinkingHabit;
+        if (stepData.data.exerciseRoutine !== undefined) lifestyleUpdate.exerciseRoutine = stepData.data.exerciseRoutine;
+        if (stepData.data.petPreference !== undefined) lifestyleUpdate.petPreference = stepData.data.petPreference;
+        if (stepData.data.livingSituation !== undefined) lifestyleUpdate.livingSituation = stepData.data.livingSituation;
+
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: lifestyleUpdate,
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
+      case 'partner-preferences':
+        const preferencesUpdate: any = {};
+        if (stepData.data.prefAgeRangeFrom !== undefined) preferencesUpdate.prefAgeRangeFrom = stepData.data.prefAgeRangeFrom;
+        if (stepData.data.prefAgeRangeTo !== undefined) preferencesUpdate.prefAgeRangeTo = stepData.data.prefAgeRangeTo;
+        if (stepData.data.prefHeightFrom !== undefined) preferencesUpdate.prefHeightFrom = stepData.data.prefHeightFrom;
+        if (stepData.data.prefHeightTo !== undefined) preferencesUpdate.prefHeightTo = stepData.data.prefHeightTo;
+        if (stepData.data.prefLocation !== undefined) preferencesUpdate.prefLocation = stepData.data.prefLocation;
+        if (stepData.data.prefEducation !== undefined) preferencesUpdate.prefEducation = stepData.data.prefEducation;
+        if (stepData.data.prefProfession !== undefined) preferencesUpdate.prefProfession = stepData.data.prefProfession;
+        if (stepData.data.prefReligion !== undefined) preferencesUpdate.prefReligion = stepData.data.prefReligion;
+        if (stepData.data.prefMaritalStatus !== undefined) preferencesUpdate.prefMaritalStatus = stepData.data.prefMaritalStatus;
+        if (stepData.data.prefChildrenCount !== undefined) preferencesUpdate.prefChildrenCount = stepData.data.prefChildrenCount;
+        if (stepData.data.prefChildrenStatus !== undefined) preferencesUpdate.prefChildrenStatus = stepData.data.prefChildrenStatus;
+        if (stepData.data.prefDietPreference !== undefined) preferencesUpdate.prefDietPreference = stepData.data.prefDietPreference;
+        if (stepData.data.prefSmokingHabit !== undefined) preferencesUpdate.prefSmokingHabit = stepData.data.prefSmokingHabit;
+        if (stepData.data.prefDrinkingHabit !== undefined) preferencesUpdate.prefDrinkingHabit = stepData.data.prefDrinkingHabit;
+
+        updatedProfile = await prisma.profile.update({
+          where: { id: profileId },
+          data: preferencesUpdate,
+          include: {
+            photos: true,
+            preferences: true,
+          },
+        });
+        break;
+
       default:
         throw new Error('Invalid step');
     }
@@ -371,264 +469,6 @@ export class ProfileService {
     });
 
     logger.info('Profile soft deleted', { profileId, userId });
-  }
-
-  async updateAboutMe(profileId: string, userId: string, dto: AboutMeDTO): Promise<ProfileData> {
-    const profile = await prisma.profile.findUnique({
-      where: { id: profileId },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    if (!profile || profile.deletedAt) {
-      throw new Error('Profile not found');
-    }
-
-    if (profile.userId !== userId) {
-      throw new Error('You do not have permission to update this profile');
-    }
-
-    const updateData: any = {};
-    if (dto.headline !== undefined) updateData.headline = dto.headline;
-    if (dto.description !== undefined) updateData.description = dto.description;
-    if (dto.languagesKnown !== undefined) updateData.languagesKnown = dto.languagesKnown;
-
-    const updatedProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: updateData,
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    const completeness = completenessService.calculateCompleteness(updatedProfile as ProfileData);
-    
-    const finalProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: { completeness },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    logger.info('Profile about me updated', { profileId, userId });
-
-    return finalProfile as ProfileData;
-  }
-
-  async updateDemographics(profileId: string, userId: string, dto: DemographicsDTO): Promise<ProfileData> {
-    const profile = await prisma.profile.findUnique({
-      where: { id: profileId },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    if (!profile || profile.deletedAt) {
-      throw new Error('Profile not found');
-    }
-
-    if (profile.userId !== userId) {
-      throw new Error('You do not have permission to update this profile');
-    }
-
-    const updateData: any = {};
-    if (dto.height !== undefined) updateData.height = dto.height;
-    if (dto.weight !== undefined) updateData.weight = dto.weight;
-    if (dto.highestEducation !== undefined) updateData.highestEducation = dto.highestEducation;
-    if (dto.fieldOfStudy !== undefined) updateData.fieldOfStudy = dto.fieldOfStudy;
-    if (dto.profession !== undefined) updateData.profession = dto.profession;
-    if (dto.religion !== undefined) updateData.religion = dto.religion;
-    if (dto.ancestralHome !== undefined) updateData.ancestralHome = dto.ancestralHome;
-    if (dto.division !== undefined) updateData.division = dto.division;
-
-    const updatedProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: updateData,
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    const completeness = completenessService.calculateCompleteness(updatedProfile as ProfileData);
-    
-    const finalProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: { completeness },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    logger.info('Profile demographics updated', { profileId, userId });
-
-    return finalProfile as ProfileData;
-  }
-
-  async updateFamilyDetails(profileId: string, userId: string, dto: FamilyDTO): Promise<ProfileData> {
-    const profile = await prisma.profile.findUnique({
-      where: { id: profileId },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    if (!profile || profile.deletedAt) {
-      throw new Error('Profile not found');
-    }
-
-    if (profile.userId !== userId) {
-      throw new Error('You do not have permission to update this profile');
-    }
-
-    const updateData: any = {};
-    if (dto.maritalStatus !== undefined) updateData.maritalStatus = dto.maritalStatus;
-    if (dto.fatherOccupation !== undefined) updateData.fatherOccupation = dto.fatherOccupation;
-    if (dto.motherOccupation !== undefined) updateData.motherOccupation = dto.motherOccupation;
-    if (dto.siblingsCount !== undefined) updateData.siblingsCount = dto.siblingsCount;
-    if (dto.childrenCount !== undefined) updateData.childrenCount = dto.childrenCount;
-    if (dto.childrenStatus !== undefined) updateData.childrenStatus = dto.childrenStatus;
-
-    const updatedProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: updateData,
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    const completeness = completenessService.calculateCompleteness(updatedProfile as ProfileData);
-    
-    const finalProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: { completeness },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    logger.info('Profile family details updated', { profileId, userId });
-
-    return finalProfile as ProfileData;
-  }
-
-  async updateLifestyle(profileId: string, userId: string, dto: LifestyleDTO): Promise<ProfileData> {
-    const profile = await prisma.profile.findUnique({
-      where: { id: profileId },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    if (!profile || profile.deletedAt) {
-      throw new Error('Profile not found');
-    }
-
-    if (profile.userId !== userId) {
-      throw new Error('You do not have permission to update this profile');
-    }
-
-    const updateData: any = {};
-    if (dto.hobbies !== undefined) updateData.hobbies = dto.hobbies;
-    if (dto.dietPreference !== undefined) updateData.dietPreference = dto.dietPreference;
-    if (dto.smokingHabit !== undefined) updateData.smokingHabit = dto.smokingHabit;
-    if (dto.drinkingHabit !== undefined) updateData.drinkingHabit = dto.drinkingHabit;
-    if (dto.exerciseRoutine !== undefined) updateData.exerciseRoutine = dto.exerciseRoutine;
-    if (dto.petPreference !== undefined) updateData.petPreference = dto.petPreference;
-    if (dto.livingSituation !== undefined) updateData.livingSituation = dto.livingSituation;
-
-    const updatedProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: updateData,
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    const completeness = completenessService.calculateCompleteness(updatedProfile as ProfileData);
-    
-    const finalProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: { completeness },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    logger.info('Profile lifestyle updated', { profileId, userId });
-
-    return finalProfile as ProfileData;
-  }
-
-  async updatePartnerPreferences(profileId: string, userId: string, dto: PartnerPreferenceDTO): Promise<ProfileData> {
-    const profile = await prisma.profile.findUnique({
-      where: { id: profileId },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    if (!profile || profile.deletedAt) {
-      throw new Error('Profile not found');
-    }
-
-    if (profile.userId !== userId) {
-      throw new Error('You do not have permission to update this profile');
-    }
-
-    const updateData: any = {};
-    if (dto.prefAgeRangeFrom !== undefined) updateData.prefAgeRangeFrom = dto.prefAgeRangeFrom;
-    if (dto.prefAgeRangeTo !== undefined) updateData.prefAgeRangeTo = dto.prefAgeRangeTo;
-    if (dto.prefHeightFrom !== undefined) updateData.prefHeightFrom = dto.prefHeightFrom;
-    if (dto.prefHeightTo !== undefined) updateData.prefHeightTo = dto.prefHeightTo;
-    if (dto.prefLocation !== undefined) updateData.prefLocation = dto.prefLocation;
-    if (dto.prefEducation !== undefined) updateData.prefEducation = dto.prefEducation;
-    if (dto.prefProfession !== undefined) updateData.prefProfession = dto.prefProfession;
-    if (dto.prefReligion !== undefined) updateData.prefReligion = dto.prefReligion;
-    if (dto.prefMaritalStatus !== undefined) updateData.prefMaritalStatus = dto.prefMaritalStatus;
-    if (dto.prefChildrenCount !== undefined) updateData.prefChildrenCount = dto.prefChildrenCount;
-    if (dto.prefChildrenStatus !== undefined) updateData.prefChildrenStatus = dto.prefChildrenStatus;
-    if (dto.prefDietPreference !== undefined) updateData.prefDietPreference = dto.prefDietPreference;
-    if (dto.prefSmokingHabit !== undefined) updateData.prefSmokingHabit = dto.prefSmokingHabit;
-    if (dto.prefDrinkingHabit !== undefined) updateData.prefDrinkingHabit = dto.prefDrinkingHabit;
-
-    const updatedProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: updateData,
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    const completeness = completenessService.calculateCompleteness(updatedProfile as ProfileData);
-    
-    const finalProfile = await prisma.profile.update({
-      where: { id: profileId },
-      data: { completeness },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
-
-    logger.info('Profile partner preferences updated', { profileId, userId });
-
-    return finalProfile as ProfileData;
   }
 }
 

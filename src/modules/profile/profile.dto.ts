@@ -112,13 +112,13 @@ export const UpdatePreferencesStepSchema = z.object({
 });
 
 // Expanded Profile Wizard Schemas
-export const aboutMeSchema = z.object({
+const expandedAboutMeSchema = z.object({
   headline: z.string().optional(),
   description: z.string().optional(),
   languagesKnown: z.array(z.string()).optional(),
 });
 
-export const demographicsSchema = z.object({
+const expandedDemographicsSchema = z.object({
   height: z.number().optional(),
   weight: z.number().optional(),
   highestEducation: z.string().optional(),
@@ -129,7 +129,7 @@ export const demographicsSchema = z.object({
   division: z.string().optional(),
 });
 
-export const familySchema = z.object({
+const expandedFamilySchema = z.object({
   maritalStatus: z.string().optional(),
   fatherOccupation: z.string().optional(),
   motherOccupation: z.string().optional(),
@@ -138,7 +138,7 @@ export const familySchema = z.object({
   childrenStatus: z.string().optional(),
 });
 
-export const lifestyleSchema = z.object({
+const expandedLifestyleSchema = z.object({
   hobbies: z.array(z.string()).optional(),
   dietPreference: z.string().optional(),
   smokingHabit: z.string().optional(),
@@ -148,7 +148,7 @@ export const lifestyleSchema = z.object({
   livingSituation: z.string().optional(),
 });
 
-export const partnerPreferenceSchema = z.object({
+const expandedPartnerPreferenceSchema = z.object({
   prefAgeRangeFrom: z.number().optional(),
   prefAgeRangeTo: z.number().optional(),
   prefHeightFrom: z.number().optional(),
@@ -173,6 +173,11 @@ export const StepUpdateSchema = z.discriminatedUnion('step', [
   z.object({ step: z.literal('location'), data: UpdateLocationStepSchema }),
   z.object({ step: z.literal('photos-metadata'), data: UpdatePhotosMetadataStepSchema }),
   z.object({ step: z.literal('preferences'), data: UpdatePreferencesStepSchema }),
+  z.object({ step: z.literal('about-me-expanded'), data: expandedAboutMeSchema }),
+  z.object({ step: z.literal('demographics-expanded'), data: expandedDemographicsSchema }),
+  z.object({ step: z.literal('family-expanded'), data: expandedFamilySchema }),
+  z.object({ step: z.literal('lifestyle-expanded'), data: expandedLifestyleSchema }),
+  z.object({ step: z.literal('partner-preferences'), data: expandedPartnerPreferenceSchema }),
 ]);
 
 export type CreateProfileDTO = z.infer<typeof CreateProfileSchema>;
@@ -184,10 +189,3 @@ export type UpdateLocationStepDTO = z.infer<typeof UpdateLocationStepSchema>;
 export type UpdatePhotosMetadataStepDTO = z.infer<typeof UpdatePhotosMetadataStepSchema>;
 export type UpdatePreferencesStepDTO = z.infer<typeof UpdatePreferencesStepSchema>;
 export type StepUpdateDTO = z.infer<typeof StepUpdateSchema>;
-
-// Expanded Profile Wizard Types
-export type AboutMeDTO = z.infer<typeof aboutMeSchema>;
-export type DemographicsDTO = z.infer<typeof demographicsSchema>;
-export type FamilyDTO = z.infer<typeof familySchema>;
-export type LifestyleDTO = z.infer<typeof lifestyleSchema>;
-export type PartnerPreferenceDTO = z.infer<typeof partnerPreferenceSchema>;
