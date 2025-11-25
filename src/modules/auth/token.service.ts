@@ -4,10 +4,9 @@ import bcrypt from 'bcryptjs';
 import { env } from '../../config/env.js';
 import { redis } from '../../config/redis.js';
 import { logger } from '../../utils/logger.js';
-import { JWTPayload, RefreshTokenData, TokenPair } from './auth.types.js';
+import { JWTPayload, RefreshTokenData } from './auth.types.js';
 
 const REFRESH_TOKEN_PREFIX = 'refresh_token:';
-const TOKEN_REUSE_DETECTION_PREFIX = 'reuse_detection:';
 
 export class TokenService {
   generateAccessToken(userId: string, email: string, sessionId: string): string {
@@ -17,11 +16,11 @@ export class TokenService {
       sessionId,
     };
 
-    return jwt.sign(payload, env.JWT_SECRET, {
+    return jwt.sign(payload, String(env.JWT_SECRET), {
       expiresIn: env.JWT_ACCESS_EXPIRY,
       issuer: 'biye-api',
       audience: 'biye-client',
-    });
+    } as any);
   }
 
   async generateRefreshToken(userId: string, sessionId: string): Promise<string> {
@@ -124,19 +123,20 @@ export class TokenService {
     logger.info('All user refresh tokens invalidated', { userId });
   }
 
-  private async detectTokenReuse(refreshToken: string): Promise<void> {
-    const reuseKey = `${TOKEN_REUSE_DETECTION_PREFIX}${refreshToken}`;
-    const reuseAttempt = await redis.get(reuseKey);
-
-    if (reuseAttempt) {
-      logger.warn('Refresh token reuse detected', { refreshToken: refreshToken.substring(0, 8) });
-      const tokenData: RefreshTokenData = JSON.parse(reuseAttempt);
-      await this.invalidateAllUserTokens(tokenData.userId);
-      throw new Error('Token reuse detected - all sessions invalidated');
-    }
-
-    await redis.setex(reuseKey, 3600, JSON.stringify({ detected: true }));
-  }
+  // Token reuse detection is currently disabled
+  // private async detectTokenReuse(refreshToken: string): Promise<void> {
+  //   const reuseKey = `${TOKEN_REUSE_DETECTION_PREFIX}${refreshToken}`;
+  //   const reuseAttempt = await redis.get(reuseKey);
+  //
+  //   if (reuseAttempt) {
+  //     logger.warn('Refresh token reuse detected', { refreshToken: refreshToken.substring(0, 8) });
+  //     const tokenData: RefreshTokenData = JSON.parse(reuseAttempt);
+  //     await this.invalidateAllUserTokens(tokenData.userId);
+  //     throw new Error('Token reuse detected - all sessions invalidated');
+  //   }
+  //
+  //   await redis.setex(reuseKey, 3600, JSON.stringify({ detected: true }));
+  // }
 
   private parseExpiryToSeconds(expiry: string): number {
     const unit = expiry.slice(-1);

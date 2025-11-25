@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authController } from './auth.controller.js';
 import { validate } from '../../middleware/validate.js';
-import { RegisterSchema, VerifyOTPSchema, LoginSchema, SelfRegistrationSchema, ParentRegistrationSchema, CandidateClaimSchema, CandidateVerifySchema } from './auth.dto.js';
+import { VerifyOTPSchema, LoginSchema, CandidateClaimSchema, CandidateVerifySchema } from './auth.dto.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 
 const router = Router();

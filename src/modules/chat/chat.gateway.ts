@@ -6,8 +6,6 @@ import { chatService } from './chat.service.js';
 import { tokenService } from '../auth/token.service.js';
 import { sessionService } from '../auth/session.service.js';
 import {
-  ChatGatewayOptions,
-  AuthenticatedSocket,
   PrivateMessagePayload,
   ChatServer,
 } from './chat.types.js';
@@ -18,12 +16,12 @@ const rateLimiter = new SocketRateLimiter({
   refillInterval: 10000,
 });
 
-export function attachChat(io: Server, opts?: ChatGatewayOptions): void {
+export function attachChat(io: Server): void {
   chatService.setSocketServer(io as ChatServer);
 
-  io.use(async (socket: AuthenticatedSocket, next) => {
+  io.use(async (socket: any, next: (err?: Error) => void) => {
     try {
-      const token = socket.handshake.auth?.token;
+      const token = socket.handshake?.auth?.token;
 
       if (!token) {
         logger.warn('Socket connection attempt without token');
@@ -52,7 +50,7 @@ export function attachChat(io: Server, opts?: ChatGatewayOptions): void {
     }
   });
 
-  io.on('connection', (socket: AuthenticatedSocket) => {
+  io.on('connection', (socket: any) => {
     const userId = socket.data.userId;
 
     socket.join(`user:${userId}`);
@@ -121,7 +119,7 @@ export function attachChat(io: Server, opts?: ChatGatewayOptions): void {
       logger.info(`User ${userId} disconnected, socket ${socket.id}`);
     });
 
-    socket.on('error', (error) => {
+    socket.on('error', (error: any) => {
       logger.error(`Socket error for user ${userId}:`, error);
     });
   });

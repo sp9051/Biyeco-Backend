@@ -18,7 +18,7 @@ const OTP_EXPIRY_MINUTES = 5;
 
 export class AuthService {
   async register(dto: RegisterDTO): Promise<{ success: boolean; message: string }> {
-    const { email, fullName, phoneNumber, password } = dto;
+    const { email, phoneNumber, password } = dto;
 
     await this.checkOTPRateLimit(email);
 
@@ -37,7 +37,6 @@ export class AuthService {
       await prisma.user.update({
         where: { email },
         data: {
-          fullName: fullName || user.fullName,
           phoneNumber: phoneNumber || user.phoneNumber,
           passwordHash,
           otpHash,
@@ -50,7 +49,6 @@ export class AuthService {
       await prisma.user.create({
         data: {
           email,
-          fullName,
           phoneNumber,
           passwordHash,
           isVerified: false,
@@ -109,7 +107,7 @@ export class AuthService {
     const refreshToken = await tokenService.generateRefreshToken(user.id, sessionId);
 
     if (!user.isVerified) {
-      await emailService.sendWelcomeEmail(email, user.fullName || undefined);
+      await emailService.sendWelcomeEmail(email, user.firstName || undefined);
     }
 
     return {
@@ -166,7 +164,7 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string, sessionInfo: SessionInfo): Promise<AuthResponse> {
+  async refresh(refreshToken: string): Promise<AuthResponse> {
     const tokenData = await tokenService.verifyRefreshToken(refreshToken);
 
     const isSessionValid = await sessionService.isSessionValid(tokenData.sessionId);
@@ -321,24 +319,14 @@ export class AuthService {
   }
 
   async registerParent(dto: ParentRegistrationDTO): Promise<{ success: boolean; message: string }> {
-    console.log(dto);
     const {
       email: parentEmail,
       parentFirstName,
       parentLastName,
       password,
       candidateEmail,
-      firstName: candidateFirstName,
-      lastName: candidateLastName,
-      gender: candidateGender,
-      dob: candidateDob,
-      city: candidateCity,
-      state: candidateState,
-      country: candidateCountry,
-      lookingFor,
       creatingFor,
       phoneNumber: parentPhone,
-      candidatePhone,
     } = dto;
 
     await this.checkOTPRateLimit(parentEmail);
@@ -389,7 +377,7 @@ export class AuthService {
   async candidateClaim(email: string): Promise<{ success: boolean; message: string }> {
     await this.checkOTPRateLimit(email);
 
-    const candidateLink = await prisma.candidateLink.findUnique({
+    const candidateLink = await prisma.candidateLink.findFirst({
       where: { candidateEmail: email },
     });
 
@@ -424,7 +412,7 @@ export class AuthService {
   async candidateVerify(dto: CandidateVerifyDTO, sessionInfo: SessionInfo): Promise<AuthResponse> {
     const { email, otp, password } = dto;
 
-    const candidateLink = await prisma.candidateLink.findUnique({
+    const candidateLink = await prisma.candidateLink.findFirst({
       where: { candidateEmail: email },
     });
 
@@ -499,7 +487,7 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      fullName: user.fullName,
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
       phoneNumber: user.phoneNumber,
       isVerified: user.isVerified,
       createdAt: user.createdAt,

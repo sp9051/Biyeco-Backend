@@ -71,13 +71,7 @@ export class AuthController {
         throw new Error('Refresh token not found');
       }
 
-      const sessionInfo: SessionInfo = {
-        deviceId: req.headers['x-device-id'] as string,
-        ip: (req.headers['x-forwarded-for'] as string) || req.ip,
-        userAgent: req.headers['user-agent'],
-      };
-
-      const result = await authService.refresh(refreshToken, sessionInfo);
+      const result = await authService.refresh(refreshToken);
 
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
@@ -167,7 +161,7 @@ export class AuthController {
 
       return sendSuccess(res, result, 'Candidate verified successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 }
