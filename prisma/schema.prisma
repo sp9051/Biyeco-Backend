@@ -9,22 +9,47 @@ datasource db {
 
 model User {
   id              String        @id @default(uuid())
+  role            String        @default("self") // self | parent | guardian | candidate
+  lookingFor      String?       // bride | groom
+  creatingFor     String?       // self | brother | sister | son | daughter | nephew | niece
+  firstName       String?
+  lastName        String?
+  gender          String?
+  dob             DateTime?
+  city            String?
+  state           String?
+  country         String?
   email           String        @unique
-  fullName        String?
   phoneNumber     String?
   passwordHash    String?
   isVerified      Boolean       @default(false)
   otpHash         String?
   otpExpiry       DateTime?
+  candidateEmail  String?       // parent creates this
   sessions        Session[]
   profile         Profile?
   savedSearches   SavedSearch[]
   interestsSent   Interest[]    @relation("InterestFrom")
   interestsReceived Interest[]  @relation("InterestTo")
+  candidateLink   CandidateLink?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   @@map("users")
+}
+
+model CandidateLink {
+  id            String   @id @default(uuid())
+  parentUserId  String   @unique
+  candidateEmail String
+  status        String   @default("pending") // pending | claimed
+  otpCode       String?
+  otpExpiry     DateTime?
+  createdAt     DateTime @default(now())
+
+  parentUser  User @relation(fields: [parentUserId], references: [id], onDelete: Cascade)
+
+  @@map("candidate_links")
 }
 
 model Session {

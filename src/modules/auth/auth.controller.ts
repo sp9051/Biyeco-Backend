@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from './auth.service.js';
-import { RegisterDTO, VerifyOTPDTO, LoginDTO } from './auth.dto.js';
+import { RegisterDTO, VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateClaimDTO, CandidateVerifyDTO } from './auth.dto.js';
 import { SessionInfo } from './auth.types.js';
 import { sendSuccess } from '../../utils/response.js';
 import { logger } from '../../utils/logger.js';
@@ -8,11 +8,18 @@ import { logger } from '../../utils/logger.js';
 export class AuthController {
   async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const dto: RegisterDTO = req.body;
+      const body = req.body;
 
-      const result = await authService.register(dto);
-
-      return sendSuccess(res, result, result.message, 201);
+      // Detect registration flow based on creatingFor
+      if (body.creatingFor === 'self') {
+        const dto: SelfRegistrationDTO = body;
+        const result = await authService.registerSelf(dto);
+        return sendSuccess(res, result, result.message, 201);
+      } else {
+        const dto: ParentRegistrationDTO = body;
+        const result = await authService.registerParent(dto);
+        return sendSuccess(res, result, result.message, 201);
+      }
     } catch (error) {
       next(error);
     }
@@ -122,6 +129,44 @@ export class AuthController {
       const user = await authService.getMe(userId);
 
       return sendSuccess(res, user, 'User retrieved successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async candidateClaim(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto: CandidateClaimDTO = req.body;
+
+      const result = await authService.candidateClaim(dto.email);
+
+      return sendSuccess(res, result, result.message, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async candidateVerify(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto: CandidateVerifyDTO = req.body;
+
+      const sessionInfo: SessionInfo = {
+        deviceId: req.headers['x-device-id'] as string,
+        ip: (req.headers['x-forwarded-for'] as string) || req.ip,
+        userAgent: req.headers['user-agent'],
+      };
+
+      const result = await authService.candidateVerify(dto, sessionInfo);
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+
+      return sendSuccess(res, result, 'Candidate verified successfully', 200);
     } catch (error) {
       next(error);
     }

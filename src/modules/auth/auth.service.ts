@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
-import { RegisterDTO, VerifyOTPDTO, LoginDTO } from './auth.dto.js';
+import { RegisterDTO, VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateVerifyDTO } from './auth.dto.js';
 import { emailService } from './email.service.js';
 import { tokenService } from './token.service.js';
 import { sessionService } from './session.service.js';
@@ -246,6 +246,252 @@ export class AuthService {
     } else {
       await redis.setex(key, OTP_RATE_LIMIT_WINDOW, '1');
     }
+  }
+
+  async registerSelf(dto: SelfRegistrationDTO): Promise<{ success: boolean; message: string }> {
+    const { email, firstName, lastName, gender, dob, city, state, country, phoneNumber, password, lookingFor } = dto;
+
+    await this.checkOTPRateLimit(email);
+
+    let user = await prisma.user.findUnique({ where: { email } });
+
+    if (user && user.isVerified) {
+      throw new Error('User already exists and is verified. Please login instead.');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const otp = this.generateOTP();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    if (user && !user.isVerified) {
+      await prisma.user.update({
+        where: { email },
+        data: {
+          role: 'self',
+          firstName,
+          lastName,
+          gender,
+          dob: new Date(dob),
+          city,
+          state,
+          country,
+          lookingFor,
+          phoneNumber: phoneNumber || user.phoneNumber,
+          passwordHash,
+          otpHash,
+          otpExpiry,
+          creatingFor: 'self',
+        },
+      });
+
+      logger.info('Resending OTP to unverified self-registration user', { email });
+    } else {
+      await prisma.user.create({
+        data: {
+          role: 'self',
+          firstName,
+          lastName,
+          gender,
+          dob: new Date(dob),
+          city,
+          state,
+          country,
+          lookingFor,
+          email,
+          phoneNumber,
+          passwordHash,
+          isVerified: false,
+          otpHash,
+          otpExpiry,
+          creatingFor: 'self',
+        },
+      });
+
+      logger.info('New self-registration initiated', { email });
+    }
+
+    await emailService.sendOTP(email, otp, 'register');
+    await this.incrementOTPRateLimit(email);
+
+    return {
+      success: true,
+      message: 'OTP sent to your email. Please verify to complete registration.',
+    };
+  }
+
+  async registerParent(dto: ParentRegistrationDTO): Promise<{ success: boolean; message: string }> {
+    const {
+      email: parentEmail,
+      parentFirstName,
+      parentLastName,
+      password,
+      candidateEmail,
+      firstName: candidateFirstName,
+      lastName: candidateLastName,
+      gender: candidateGender,
+      dob: candidateDob,
+      city: candidateCity,
+      state: candidateState,
+      country: candidateCountry,
+      lookingFor,
+      creatingFor,
+      phoneNumber: parentPhone,
+      candidatePhone,
+    } = dto;
+
+    await this.checkOTPRateLimit(parentEmail);
+
+    // Create parent user
+    const passwordHash = await bcrypt.hash(password, 10);
+    const otp = this.generateOTP();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    const parentUser = await prisma.user.create({
+      data: {
+        role: 'parent',
+        firstName: parentFirstName,
+        lastName: parentLastName,
+        email: parentEmail,
+        phoneNumber: parentPhone,
+        passwordHash,
+        otpHash,
+        otpExpiry,
+        isVerified: false,
+        candidateEmail,
+        creatingFor,
+      },
+    });
+
+    // Create CandidateLink record
+    await prisma.candidateLink.create({
+      data: {
+        parentUserId: parentUser.id,
+        candidateEmail,
+        status: 'pending',
+      },
+    });
+
+    // Send OTP to parent's email
+    await emailService.sendOTP(parentEmail, otp, 'register');
+    await this.incrementOTPRateLimit(parentEmail);
+
+    logger.info('New parent registration initiated', { email: parentEmail, candidateEmail });
+
+    return {
+      success: true,
+      message: 'Parent email verified via OTP. Candidate will be notified.',
+    };
+  }
+
+  async candidateClaim(email: string): Promise<{ success: boolean; message: string }> {
+    await this.checkOTPRateLimit(email);
+
+    const candidateLink = await prisma.candidateLink.findUnique({
+      where: { candidateEmail: email },
+    });
+
+    if (!candidateLink) {
+      throw new Error('No invitation found for this email address.');
+    }
+
+    if (candidateLink.status === 'claimed') {
+      throw new Error('This invitation has already been claimed.');
+    }
+
+    const otp = this.generateOTP();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await prisma.candidateLink.update({
+      where: { id: candidateLink.id },
+      data: { otpCode: otpHash, otpExpiry },
+    });
+
+    await emailService.sendOTP(email, otp, 'register');
+    await this.incrementOTPRateLimit(email);
+
+    logger.info('Candidate claim OTP sent', { email });
+
+    return {
+      success: true,
+      message: 'OTP sent to your email. Please verify to claim your profile.',
+    };
+  }
+
+  async candidateVerify(dto: CandidateVerifyDTO, sessionInfo: SessionInfo): Promise<AuthResponse> {
+    const { email, otp, password } = dto;
+
+    const candidateLink = await prisma.candidateLink.findUnique({
+      where: { candidateEmail: email },
+    });
+
+    if (!candidateLink) {
+      throw new Error('Invalid claim request. Please contact support.');
+    }
+
+    if (!candidateLink.otpCode || !candidateLink.otpExpiry) {
+      throw new Error('No OTP found. Please request a new one.');
+    }
+
+    if (new Date() > candidateLink.otpExpiry) {
+      throw new Error('OTP has expired. Please request a new one.');
+    }
+
+    const isOTPValid = await bcrypt.compare(otp, candidateLink.otpCode);
+
+    if (!isOTPValid) {
+      logger.warn('Invalid candidate claim OTP attempt', { email });
+      throw new Error('Invalid OTP. Please try again.');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create or update candidate account
+    let candidateUser = await prisma.user.findUnique({ where: { email } });
+
+    if (!candidateUser) {
+      candidateUser = await prisma.user.create({
+        data: {
+          role: 'candidate',
+          email,
+          passwordHash,
+          isVerified: true,
+        },
+      });
+    } else {
+      candidateUser = await prisma.user.update({
+        where: { email },
+        data: {
+          role: 'candidate',
+          passwordHash,
+          isVerified: true,
+        },
+      });
+    }
+
+    // Mark CandidateLink as claimed
+    await prisma.candidateLink.update({
+      where: { id: candidateLink.id },
+      data: {
+        status: 'claimed',
+        otpCode: null,
+        otpExpiry: null,
+      },
+    });
+
+    logger.info('Candidate claim verified', { email, candidateUserId: candidateUser.id });
+
+    const sessionId = await sessionService.createSession(candidateUser.id, sessionInfo);
+    const accessToken = tokenService.generateAccessToken(candidateUser.id, candidateUser.email, sessionId);
+    const refreshToken = await tokenService.generateRefreshToken(candidateUser.id, sessionId);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: this.sanitizeUser(candidateUser),
+    };
   }
 
   private sanitizeUser(user: any): UserResponse {
