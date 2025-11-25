@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from './auth.service.js';
-import { RegisterDTO, VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateClaimDTO, CandidateVerifyDTO } from './auth.dto.js';
+import { VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateClaimDTO, CandidateVerifyDTO } from './auth.dto.js';
 import { SessionInfo } from './auth.types.js';
 import { sendSuccess } from '../../utils/response.js';
-import { logger } from '../../utils/logger.js';
 
 export class AuthController {
   async register(req: Request, res: Response, next: NextFunction) {
@@ -21,7 +20,7 @@ export class AuthController {
         return sendSuccess(res, result, result.message, 201);
       }
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -47,7 +46,7 @@ export class AuthController {
 
       return sendSuccess(res, result, 'Verification successful', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -59,7 +58,7 @@ export class AuthController {
 
       return sendSuccess(res, result, 'OTP sent to your email. Please verify to login.', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -90,7 +89,7 @@ export class AuthController {
 
       return sendSuccess(res, result, 'Token refreshed successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -114,7 +113,7 @@ export class AuthController {
 
       return sendSuccess(res, null, 'Logged out successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -130,7 +129,7 @@ export class AuthController {
 
       return sendSuccess(res, user, 'User retrieved successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -142,7 +141,7 @@ export class AuthController {
 
       return sendSuccess(res, result, result.message, 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
