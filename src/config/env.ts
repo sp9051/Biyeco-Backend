@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1, 'postgresql://postgres:postgres@localhost:5432/biye_db'),
+  DATABASE_URL: z.string().min(1, 'postgresql://biye_db_user:lmjulKsI9BqkYk96990kqEk5vaYEufBX@dpg-d4iv1la4d50c73f1qti0-a/biye_db'),
   // REDIS_URL: z.string().min(1, 'redis://127.0.0.1:6379'),
   REDIS_URL: z.string().min(1, 'rediss://default:AaGLAAIncDIxMmU2YzVmNGVhMmE0OWY5OTAzMGMzNzAzYjFmOGRlOXAyNDEzNTU@wise-tadpole-41355.upstash.io:6379'),
   // REDIS_URL=""
