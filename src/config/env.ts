@@ -5,7 +5,9 @@ dotenv.config();
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'postgresql://postgres:postgres@localhost:5432/biye_db'),
-  REDIS_URL: z.string().min(1, 'redis://127.0.0.1:6379'),
+  // REDIS_URL: z.string().min(1, 'redis://127.0.0.1:6379'),
+  REDIS_URL: z.string().min(1, 'rediss://default:AaGLAAIncDIxMmU2YzVmNGVhMmE0OWY5OTAzMGMzNzAzYjFmOGRlOXAyNDEzNTU@wise-tadpole-41355.upstash.io:6379'),
+  // REDIS_URL=""
   JWT_SECRET: z.string().min(32, '58038c80d42a960fe3618326f7ac0273'),
   JWT_REFRESH_SECRET: z.string().min(32, '6411c27a28bc57b0841348b5d21adb3c'),
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
@@ -59,7 +61,7 @@ const envSchema = z.object({
 
   // Moderation
   MODERATION_SECRET: z.string().min(32).optional(),
-  
+
   // Search & Discovery
   MAX_QUERY_COST: z.coerce.number().default(30),
 });

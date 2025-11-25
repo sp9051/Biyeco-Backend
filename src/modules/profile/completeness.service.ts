@@ -109,29 +109,29 @@ export class CompletenessService {
     const required = ['displayName', 'gender', 'dob', 'location', 'about', 'headline'];
     const missingFields: string[] = [];
 
-    if (!profile.displayName || profile.displayName.length < 2) {
-      missingFields.push('displayName');
-    }
+    // if (!profile.displayName || profile.displayName.length < 2) {
+    //   missingFields.push('displayName');
+    // }
 
-    if (!profile.gender) {
-      missingFields.push('gender');
-    }
+    // if (!profile.gender) {
+    //   missingFields.push('gender');
+    // }
 
-    if (!profile.dob) {
-      missingFields.push('dob');
-    }
+    // if (!profile.dob) {
+    //   missingFields.push('dob');
+    // }
 
-    if (!profile.location || !this.isValidLocation(profile.location)) {
-      missingFields.push('location');
-    }
+    // if (!profile.location || !this.isValidLocation(profile.location)) {
+    //   missingFields.push('location');
+    // }
 
-    if (!profile.about || profile.about.length < 50) {
-      missingFields.push('about');
-    }
+    // if (!profile.about || profile.about.length < 50) {
+    //   missingFields.push('about');
+    // }
 
-    if (!profile.headline || profile.headline.length < 10) {
-      missingFields.push('headline');
-    }
+    // if (!profile.headline || profile.headline.length < 10) {
+    //   missingFields.push('headline');
+    // }
 
     if (!profile.photos || profile.photos.length === 0) {
       missingFields.push('photos (at least 1 required)');

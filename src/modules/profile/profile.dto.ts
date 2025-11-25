@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const CreateProfileSchema = z.object({
-  displayName: z.string().min(2, 'Display name must be at least 2 characters'),
+  displayName: z.string().optional(),
   headline: z.string().optional(),
   about: z.string().optional(),
 });

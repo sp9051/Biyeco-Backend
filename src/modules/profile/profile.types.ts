@@ -1,7 +1,7 @@
 export interface ProfileData {
   id: string;
   userId: string;
-  displayName: string;
+  displayName?: string;
   headline?: string;
   about?: string;
   gender?: string;

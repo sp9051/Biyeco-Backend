@@ -11,8 +11,10 @@ export const RegisterSchema = z.object({
 });
 
 export const SelfRegistrationSchema = z.object({
-  lookingFor: z.enum(['bride', 'groom']),
-  creatingFor: z.literal('self'),
+  // lookingFor: z.enum(['bride', 'groom']),
+  // creatingFor: z.literal('self'),
+  lookingFor: z.string(),
+  creatingFor: z.string(),
   firstName: z.string().min(2),
   lastName: z.string().min(2),
   gender: z.string(),
@@ -26,8 +28,10 @@ export const SelfRegistrationSchema = z.object({
 });
 
 export const ParentRegistrationSchema = z.object({
-  lookingFor: z.enum(['bride', 'groom']),
-  creatingFor: z.enum(['brother', 'sister', 'son', 'daughter', 'nephew', 'niece']),
+  // lookingFor: z.enum(['bride', 'groom']),
+  // creatingFor: z.enum(['brother', 'sister', 'son', 'daughter', 'nephew', 'niece']),
+  lookingFor: z.string(),
+  creatingFor: z.string(),
   // Candidate details
   firstName: z.string().min(2),
   lastName: z.string().min(2),
@@ -39,8 +43,8 @@ export const ParentRegistrationSchema = z.object({
   // Parent details
   parentFirstName: z.string().min(2),
   parentLastName: z.string().min(2),
-  parentEmail: z.string().email(),
-  parentPhone: z.string().optional(),
+  email: z.string().email(),
+  phoneNumber: z.string().optional(),
   password: z.string().min(8),
   candidateEmail: z.string().email(),
   candidatePhone: z.string().optional(),

@@ -321,6 +321,7 @@ export class AuthService {
   }
 
   async registerParent(dto: ParentRegistrationDTO): Promise<{ success: boolean; message: string }> {
+    console.log(dto);
     const {
       email: parentEmail,
       parentFirstName,

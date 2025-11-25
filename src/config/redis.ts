@@ -26,7 +26,7 @@ export function getRedisClient(): Redis {
     });
 
     redisClient.on('connect', () => {
-      logger.info('Redis client connected');
+      logger.info('Redis client connected: ' + env.REDIS_URL);
     });
 
     redisClient.on('ready', () => {

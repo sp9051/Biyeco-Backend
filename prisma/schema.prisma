@@ -69,7 +69,7 @@ model Session {
 model Profile {
   id           String      @id @default(uuid())
   userId       String      @unique
-  displayName  String
+  displayName  String?
   headline     String?
   about        String?
   gender       String?
