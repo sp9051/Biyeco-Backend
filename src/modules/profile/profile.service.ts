@@ -3,8 +3,6 @@ import { ProfileData, RequesterContext } from './profile.types.js';
 import {
   CreateProfileDTO,
   StepUpdateDTO,
-  UpdatePhotosMetadataStepDTO,
-  UpdatePreferencesStepDTO,
 } from './profile.dto.js';
 import { completenessService } from './completeness.service.js';
 import { profilePermissions } from './profile.permissions.js';
@@ -225,22 +223,22 @@ export class ProfileService {
           await prisma.preference.update({
             where: { profileId },
             data: {
-              basic: stepData.data.preferences.basic || existingPreferences.basic,
-              lifestyle: stepData.data.preferences.lifestyle || existingPreferences.lifestyle,
-              education: stepData.data.preferences.education || existingPreferences.education,
-              community: stepData.data.preferences.community || existingPreferences.community,
-              location: stepData.data.preferences.location || existingPreferences.location,
+              basic: (stepData.data.preferences.basic || existingPreferences.basic) as any,
+              lifestyle: (stepData.data.preferences.lifestyle || existingPreferences.lifestyle) as any,
+              education: (stepData.data.preferences.education || existingPreferences.education) as any,
+              community: (stepData.data.preferences.community || existingPreferences.community) as any,
+              location: (stepData.data.preferences.location || existingPreferences.location) as any,
             },
           });
         } else {
           await prisma.preference.create({
             data: {
               profileId,
-              basic: stepData.data.preferences.basic,
-              lifestyle: stepData.data.preferences.lifestyle,
-              education: stepData.data.preferences.education,
-              community: stepData.data.preferences.community,
-              location: stepData.data.preferences.location,
+              basic: stepData.data.preferences.basic as any,
+              lifestyle: stepData.data.preferences.lifestyle as any,
+              education: stepData.data.preferences.education as any,
+              community: stepData.data.preferences.community as any,
+              location: stepData.data.preferences.location as any,
             },
           });
         }

@@ -39,7 +39,7 @@ export class ModerationController {
 
       return sendSuccess(res, { success: true }, 'Moderation callback processed', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 }

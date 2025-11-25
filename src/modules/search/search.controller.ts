@@ -23,7 +23,7 @@ export class SearchController {
 
       return sendSuccess(res, result, 'Search completed', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -36,7 +36,7 @@ export class SearchController {
 
       return sendSuccess(res, savedSearch, 'Search saved successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -48,7 +48,7 @@ export class SearchController {
 
       return sendSuccess(res, savedSearches, 'Saved searches retrieved', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -61,7 +61,7 @@ export class SearchController {
 
       return sendSuccess(res, null, 'Saved search deleted', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 }

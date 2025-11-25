@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { env } from '../../../config/env.js';
 
 const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
 

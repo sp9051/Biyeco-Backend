@@ -11,7 +11,7 @@ export class ProfilePermissions {
 
     const maskedProfile: MaskedProfile = {
       id: profile.id,
-      displayName: profile.displayName,
+      displayName: profile.displayName || '',
       completeness: profile.completeness,
     };
 

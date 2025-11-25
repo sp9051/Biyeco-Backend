@@ -1,6 +1,5 @@
 import { redis } from '../../config/redis.js';
 import { logger } from '../../utils/logger.js';
-import crypto from 'crypto';
 
 export interface IdempotencyResult {
   isReplay: boolean;
@@ -12,13 +11,6 @@ export class IdempotencyService {
 
   private getIdempotencyKey(key: string): string {
     return `idempotency:${key}`;
-  }
-
-  private hashResponse(response: any): string {
-    return crypto
-      .createHash('sha256')
-      .update(JSON.stringify(response))
-      .digest('hex');
   }
 
   async checkIdempotency(idempotencyKey: string): Promise<IdempotencyResult> {

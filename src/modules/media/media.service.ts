@@ -82,7 +82,9 @@ export class MediaService {
 
     await prisma.photo.update({ where: { id: photoId }, data: { uploadedAt: new Date(), url } });
 
-    return this.getPhotoById(photoId);
+    const result = await this.getPhotoById(photoId);
+    if (!result) throw new Error('Failed to retrieve uploaded photo');
+    return result;
   }
 
   async getPhotoById(photoId: string, requesterId?: string): Promise<PhotoMetadata | null> {
@@ -139,7 +141,7 @@ export class MediaService {
     });
 
     const filteredPhotos = await Promise.all(
-      photos.map(async (photo) => {
+      photos.map(async (photo: any) => {
         const canView = await this.checkPhotoViewPermission(photo, requesterId);
         return canView ? this.sanitizePhotoMetadata(photo) : null;
       })

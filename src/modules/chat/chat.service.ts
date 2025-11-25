@@ -176,7 +176,7 @@ export class ChatService {
     const hasMore = threads.length > limit;
     const items = hasMore ? threads.slice(0, -1) : threads;
 
-    const threadsWithPreview: ThreadWithPreview[] = items.map((thread) => ({
+    const threadsWithPreview: ThreadWithPreview[] = items.map((thread: any) => ({
       id: thread.id,
       participants: thread.participants,
       lastMsgAt: thread.lastMsgAt,
@@ -253,7 +253,7 @@ export class ChatService {
     const hasMore = messages.length > limit;
     const items = hasMore ? messages.slice(0, -1) : messages;
 
-    const messageResponses: MessageResponse[] = items.map((msg) => ({
+    const messageResponses: MessageResponse[] = items.map((msg: any) => ({
       id: msg.id,
       threadId: msg.threadId,
       fromUserId: msg.fromUserId,
@@ -305,8 +305,8 @@ export class ChatService {
     });
 
     if (updatedMessages.count > 0 && this.io) {
-      const otherParticipants = thread.participants.filter((p) => p !== userId);
-      otherParticipants.forEach((participantId) => {
+      const otherParticipants = thread.participants.filter((p: string) => p !== userId);
+      otherParticipants.forEach((participantId: string) => {
         this.io?.to(`user:${participantId}`).emit('read_receipt', {
           messageId: uptoMessageId || 'multiple',
           threadId,

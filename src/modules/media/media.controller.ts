@@ -20,7 +20,7 @@ export class MediaController {
 
       return sendSuccess(res, result, 'Upload URL created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
   async uploadFile(req: Request, res: Response, next: NextFunction) {
@@ -31,7 +31,7 @@ export class MediaController {
       const result = await mediaService.uploadFile(photoId, req.file.buffer);
       return sendSuccess(res, result, 'File uploaded', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -54,7 +54,7 @@ export class MediaController {
 
       return sendSuccess(res, photo, 'Photo retrieved successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -67,7 +67,7 @@ export class MediaController {
 
       return sendSuccess(res, null, 'Photo deleted successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -80,7 +80,7 @@ export class MediaController {
 
       return sendSuccess(res, photos, 'Photos retrieved successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 }

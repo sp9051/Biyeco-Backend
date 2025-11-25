@@ -41,7 +41,7 @@ export class ConnectionsController {
 
       return sendSuccess(res, result, 'Interest sent successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -80,7 +80,7 @@ export class ConnectionsController {
 
       return sendSuccess(res, result, 'Interest accepted successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -119,7 +119,7 @@ export class ConnectionsController {
 
       return sendSuccess(res, result, 'Interest declined', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -158,7 +158,7 @@ export class ConnectionsController {
 
       return sendSuccess(res, result, 'Interest withdrawn', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -172,7 +172,7 @@ export class ConnectionsController {
 
       return sendSuccess(res, interests, 'Sent interests retrieved', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -186,7 +186,7 @@ export class ConnectionsController {
 
       return sendSuccess(res, interests, 'Received interests retrieved', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -200,7 +200,7 @@ export class ConnectionsController {
 
       return sendSuccess(res, matches, 'Matches retrieved', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 }

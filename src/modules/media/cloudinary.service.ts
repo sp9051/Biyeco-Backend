@@ -19,7 +19,7 @@ export interface CloudinaryUploadResult {
 
 export class CloudinaryService {
   async createSignedUploadParams(params: CloudinaryUploadParams): Promise<CloudinaryUploadResult> {
-    const { publicId, folder, maxBytes } = params;
+    const { publicId, folder } = params;
 
     const timestamp = Math.floor(Date.now() / 1000);
 

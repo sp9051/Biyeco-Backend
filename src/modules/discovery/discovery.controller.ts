@@ -21,7 +21,7 @@ export class DiscoveryController {
 
       return sendSuccess(res, result, 'Recommended profiles retrieved', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -42,7 +42,7 @@ export class DiscoveryController {
 
       return sendSuccess(res, result, 'New profiles retrieved', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -63,7 +63,7 @@ export class DiscoveryController {
 
       return sendSuccess(res, result, 'Nearby profiles retrieved', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 }

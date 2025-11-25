@@ -18,7 +18,7 @@ export class DiscoveryService {
 
     const profiles = await recommendationService.getRecommendations(userId, cursor, limit);
 
-    const maskedProfiles = profiles.map((profile) =>
+    const maskedProfiles = profiles.map((profile: any) =>
       profilePermissions.maskProfile(profile as any, { userId })
     );
 
@@ -42,7 +42,7 @@ export class DiscoveryService {
 
     const profiles = await recommendationService.getNewProfiles(userId, cursor, limit);
 
-    const maskedProfiles = profiles.map((profile) =>
+    const maskedProfiles = profiles.map((profile: any) =>
       profilePermissions.maskProfile(profile as any, { userId })
     );
 
@@ -66,7 +66,7 @@ export class DiscoveryService {
 
     const profiles = await recommendationService.getNearbyProfiles(userId, cursor, limit);
 
-    const maskedProfiles = profiles.map((profile) =>
+    const maskedProfiles = profiles.map((profile: any) =>
       profilePermissions.maskProfile(profile as any, { userId })
     );
 

@@ -106,7 +106,6 @@ export class CompletenessService {
   }
 
   canPublish(profile: ProfileData): { canPublish: boolean; missingFields: string[] } {
-    const required = ['displayName', 'gender', 'dob', 'location', 'about', 'headline'];
     const missingFields: string[] = [];
 
     // if (!profile.displayName || profile.displayName.length < 2) {

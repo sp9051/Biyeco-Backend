@@ -260,7 +260,7 @@ export class ConnectionsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return interests.map((interest) => ({
+    return interests.map((interest: any) => ({
       id: interest.id,
       toUserId: interest.toUserId,
       toUser: interest.toUser,
@@ -288,7 +288,7 @@ export class ConnectionsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return interests.map((interest) => ({
+    return interests.map((interest: any) => ({
       id: interest.id,
       fromUserId: interest.fromUserId,
       fromUser: interest.fromUser,
@@ -306,22 +306,6 @@ export class ConnectionsService {
       },
       include: {
         toUser: {
-          select: {
-            id: true,
-            email: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
-
-    const receivedAccepted = await prisma.interest.findMany({
-      where: {
-        toUserId: userId,
-        status: 'accepted',
-      },
-      include: {
-        fromUser: {
           select: {
             id: true,
             email: true,

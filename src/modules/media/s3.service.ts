@@ -14,7 +14,7 @@ export interface S3PresignedUrlResult {
 
 export class S3Service {
   async createPresignedPutUrl(params: S3UploadParams): Promise<S3PresignedUrlResult> {
-    const { bucket, key, contentType, expiresSeconds } = params;
+    const { bucket, key, expiresSeconds } = params;
 
     const expiresAt = new Date(Date.now() + expiresSeconds * 1000);
 

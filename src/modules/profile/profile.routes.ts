@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { profileController } from './profile.controller.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
-// import { validate } from '../../middleware/validate.js';
-import { validate } from 'middleware/validate.js';
+import { validate } from '../../middleware/validate.js';
 import {
   CreateProfileSchema,
   StepUpdateSchema,
@@ -24,7 +23,7 @@ router.get('/:id', authenticateToken, profileController.getProfileById.bind(prof
 router.patch(
   '/:id/step',
   authenticateToken,
-  validate(StepUpdateSchema),
+  validate(StepUpdateSchema as any),
   profileController.updateProfileStep.bind(profileController)
 );
 

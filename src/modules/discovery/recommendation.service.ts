@@ -163,7 +163,7 @@ export class RecommendationService {
       },
     });
 
-    const nearbyProfiles = profiles.filter((profile) => {
+    const nearbyProfiles = profiles.filter((profile: any) => {
       const profileCity = (profile.location as any)?.city;
       return profileCity === userCity;
     });

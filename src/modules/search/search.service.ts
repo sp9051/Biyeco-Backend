@@ -51,7 +51,7 @@ export class SearchService {
       },
     });
 
-    const maskedProfiles = profiles.map((profile) =>
+    const maskedProfiles = profiles.map((profile: any) =>
       profilePermissions.maskProfile(profile as any, { userId })
     );
 

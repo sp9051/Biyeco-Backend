@@ -4,7 +4,6 @@ import { profilePermissions } from './profile.permissions.js';
 import { CreateProfileDTO, StepUpdateDTO } from './profile.dto.js';
 import { RequesterContext } from './profile.types.js';
 import { sendSuccess } from '../../utils/response.js';
-import { logger } from '../../utils/logger.js';
 
 export class ProfileController {
   async createProfile(req: Request, res: Response, next: NextFunction) {
@@ -16,7 +15,7 @@ export class ProfileController {
 
       return sendSuccess(res, profile, 'Profile created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -32,7 +31,7 @@ export class ProfileController {
 
       return sendSuccess(res, profile, 'Profile retrieved successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -54,7 +53,7 @@ export class ProfileController {
 
       return sendSuccess(res, maskedProfile, 'Profile retrieved successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -68,7 +67,7 @@ export class ProfileController {
 
       return sendSuccess(res, profile, 'Profile step updated successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -81,7 +80,7 @@ export class ProfileController {
 
       return sendSuccess(res, profile, 'Profile published successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -94,7 +93,7 @@ export class ProfileController {
 
       return sendSuccess(res, profile, 'Profile unpublished successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
@@ -107,7 +106,7 @@ export class ProfileController {
 
       return sendSuccess(res, null, 'Profile deleted successfully', 200);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 }
