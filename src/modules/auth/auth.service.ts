@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Profile } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import { RegisterDTO, VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateStartDTO, InviteChildDTO } from './auth.dto.js';
@@ -8,6 +8,7 @@ import { sessionService } from './session.service.js';
 import { AuthResponse, SessionInfo, UserResponse } from './auth.types.js';
 import { logger } from '../../utils/logger.js';
 import { redis } from '../../config/redis.js';
+
 
 const prisma = new PrismaClient();
 
@@ -70,6 +71,83 @@ export class AuthService {
     };
   }
 
+  // async verify(dto: VerifyOTPDTO, sessionInfo: SessionInfo): Promise<AuthResponse> {
+  //   const { email, otp } = dto;
+
+  //   const user = await prisma.user.findUnique({ where: { email } });
+
+  //   if (!user || !user.otpHash || !user.otpExpiry) {
+  //     throw new Error('Invalid verification request. Please request a new OTP.');
+  //   }
+
+  //   if (new Date() > user.otpExpiry) {
+  //     throw new Error('OTP has expired. Please request a new one.');
+  //   }
+
+  //   const isOTPValid = await bcrypt.compare(otp, user.otpHash);
+
+  //   if (!isOTPValid) {
+  //     logger.warn('Invalid OTP attempt', { email });
+  //     throw new Error('Invalid OTP. Please try again.');
+  //   }
+
+  //   await prisma.user.update({
+  //     where: { email },
+  //     data: {
+  //       isVerified: true,
+  //       otpHash: null,
+  //       otpExpiry: null,
+  //     },
+  //   });
+
+  //   if (user.role === 'candidate' || user.role === 'guardian') {
+  //     await prisma.candidateLink.updateMany({
+  //       where: {
+  //         childUserId: user.id,
+  //         status: 'pending',
+  //       },
+  //       data: {
+  //         status: 'active',
+  //       },
+  //     });
+  //   }
+
+  //   logger.info('User verified successfully', { email, userId: user.id, role: user.role });
+
+  //   let profile = await prisma.profile.findUnique({
+  //     where: { userId: user.id },
+  //   });
+  //   console.log(user);
+  //   console.log(profile);
+  //   if (!profile) {
+  //     throw new Error("Profile not found for user");
+  //   }
+
+  //   const requester: RequesterContext = {
+  //     userId: user.id,
+  //     isOwner: false,
+  //     isGuardian: false,
+  //     isPremium: false,
+  //   };
+  //   const profileDt = await profileService.getProfileById(profile.id, requester);
+
+  //   const sessionId = await sessionService.createSession(user.id, sessionInfo);
+
+  //   const accessToken = tokenService.generateAccessToken(user.id, user.email, sessionId);
+  //   const refreshToken = await tokenService.generateRefreshToken(user.id, sessionId);
+
+  //   if (!user.isVerified) {
+  //     await emailService.sendWelcomeEmail(email, user.firstName || undefined);
+  //   }
+
+  //   return {
+  //     accessToken,
+  //     refreshToken,
+  //     user: this.sanitizeUser(user),
+  //     profile: profileDt,
+  //   };
+  // }
+
   async verify(dto: VerifyOTPDTO, sessionInfo: SessionInfo): Promise<AuthResponse> {
     const { email, otp } = dto;
 
@@ -90,6 +168,7 @@ export class AuthService {
       throw new Error('Invalid OTP. Please try again.');
     }
 
+    // Mark user verified
     await prisma.user.update({
       where: { email },
       data: {
@@ -99,6 +178,7 @@ export class AuthService {
       },
     });
 
+    // If this is a candidate/guardian, activate their CandidateLinks
     if (user.role === 'candidate' || user.role === 'guardian') {
       await prisma.candidateLink.updateMany({
         where: {
@@ -113,11 +193,67 @@ export class AuthService {
 
     logger.info('User verified successfully', { email, userId: user.id, role: user.role });
 
+    // 🔍 Resolve the profile differently based on role
+    let profile: Profile | null = null;
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      // Self / candidate own their profile directly
+      profile = await prisma.profile.findUnique({
+        where: { userId: user.id },
+      });
+    } else if (user.role === 'parent') {
+      // Parent: find a profile via CandidateLink where this user is parent
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: user.id,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      profile = link?.profile ?? null;
+    } else if (user.role === 'guardian') {
+      // Guardian: find profile via CandidateLink where this user is a childUser
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          childUserId: user.id,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      profile = link?.profile ?? null;
+    }
+
+    if (!profile) {
+      // For parent/guardian: you might eventually want to return a different shape
+      // (e.g. list of profiles), but for now we enforce "must have at least one profile"
+      throw new Error('Profile not found for user');
+    }
+
+    // Build requester context based on role & ownership
+    // const isOwner = profile.userId === user.id;
+    // const isGuardian = user.role === 'parent' || user.role === 'guardian';
+
+    // const requester: RequesterContext = {
+    //   userId: user.id,
+    //   isOwner,
+    //   isGuardian,
+    //   isPremium: false, // keep your existing premium logic if you have one
+    // };
+
+    // const profileDt = await profileService.getProfileById(profile.id, requester);
+
     const sessionId = await sessionService.createSession(user.id, sessionInfo);
 
     const accessToken = tokenService.generateAccessToken(user.id, user.email, sessionId);
     const refreshToken = await tokenService.generateRefreshToken(user.id, sessionId);
 
+    // Welcome email only on first verification
     if (!user.isVerified) {
       await emailService.sendWelcomeEmail(email, user.firstName || undefined);
     }
@@ -126,8 +262,10 @@ export class AuthService {
       accessToken,
       refreshToken,
       user: this.sanitizeUser(user),
+      profile: profile.id,
     };
   }
+
 
   async login(dto: LoginDTO): Promise<{ success: boolean; otpSent: boolean }> {
     const { email, password } = dto;
@@ -192,6 +330,61 @@ export class AuthService {
       throw new Error('User not found');
     }
 
+    let profile: Profile | null = null;
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      // Self / candidate own their profile directly
+      profile = await prisma.profile.findUnique({
+        where: { userId: user.id },
+      });
+    } else if (user.role === 'parent') {
+      // Parent: find a profile via CandidateLink where this user is parent
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: user.id,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      profile = link?.profile ?? null;
+    } else if (user.role === 'guardian') {
+      // Guardian: find profile via CandidateLink where this user is a childUser
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          childUserId: user.id,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      profile = link?.profile ?? null;
+    }
+
+    if (!profile) {
+      // For parent/guardian: you might eventually want to return a different shape
+      // (e.g. list of profiles), but for now we enforce "must have at least one profile"
+      throw new Error('Profile not found for user');
+    }
+
+    // Build requester context based on role & ownership
+    // const isOwner = profile.userId === user.id;
+    // const isGuardian = user.role === 'parent' || user.role === 'guardian';
+
+    // const requester: RequesterContext = {
+    //   userId: user.id,
+    //   isOwner,
+    //   isGuardian,
+    //   isPremium: false, // keep your existing premium logic if you have one
+    // };
+
+    // const profileDt = await profileService.getProfileById(profile.id, requester);
+
+
     await sessionService.updateSessionActivity(tokenData.sessionId);
 
     const newRefreshToken = await tokenService.rotateRefreshToken(
@@ -212,6 +405,7 @@ export class AuthService {
       accessToken,
       refreshToken: newRefreshToken,
       user: this.sanitizeUser(user),
+      profile: profile.id,
     };
   }
 
@@ -258,8 +452,114 @@ export class AuthService {
     }
   }
 
+  // async registerSelf(dto: SelfRegistrationDTO): Promise<{ success: boolean; message: string }> {
+  //   const { lookingFor, creatingFor, gender, dob, city, state, country, email, firstName, lastName, phoneNumber, password } = dto;
+
+  //   await this.checkOTPRateLimit(email);
+
+  //   let user = await prisma.user.findUnique({ where: { email } });
+
+  //   if (user && user.isVerified) {
+  //     throw new Error('User already exists and is verified. Please login instead.');
+  //   }
+
+  //   const passwordHash = await bcrypt.hash(password, 10);
+  //   const otp = this.generateOTP();
+  //   const otpHash = await bcrypt.hash(otp, 10);
+  //   const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+  //   // let profile = await prisma.profile.findUnique({
+  //   //     where: { userId: user.id },
+  //   //   });
+
+  //   //   if (!profile) {
+  //   //     profile = await tx.profile.create({
+  //   //       data: {
+  //   //         userId: candidateUser.id,
+  //   //         gender: candidateGender,
+  //   //         dob: new Date(candidateDob),
+  //   //         location: {
+  //   //           city: candidateCity,
+  //   //           state: candidateState,
+  //   //           country: candidateCountry,
+  //   //         },
+  //   //       },
+  //   //     });
+  //   //   } else {
+  //   //     profile = await tx.profile.update({
+  //   //       where: { id: profile.id },
+  //   //       data: {
+  //   //         gender: candidateGender,
+  //   //         dob: new Date(candidateDob),
+  //   //         location: {
+  //   //           city: candidateCity,
+  //   //           state: candidateState,
+  //   //           country: candidateCountry,
+  //   //         },
+  //   //       },
+  //   //     });
+  //   //   }
+
+  //   if (user && !user.isVerified) {
+  //     await prisma.user.update({
+  //       where: { email },
+  //       data: {
+  //         role: 'self',
+  //         lookingFor,          
+  //         firstName,
+  //         lastName,
+  //         phoneNumber: phoneNumber || user.phoneNumber,
+  //         passwordHash,
+  //         otpHash,
+  //         otpExpiry,
+  //         creatingFor,
+  //       },
+  //     });
+
+  //     logger.info('Resending OTP to unverified self-registration user', { email });
+  //   } else {
+  //     await prisma.user.create({
+  //       data: {
+  //         role: 'self',
+  //         lookingFor,          
+  //         firstName,
+  //         lastName,
+  //         email,
+  //         phoneNumber,
+  //         passwordHash,
+  //         isVerified: false,
+  //         otpHash,
+  //         otpExpiry,
+  //         creatingFor,
+  //       },
+  //     });
+
+  //     logger.info('New self-registration initiated', { email });
+  //   }
+
+  //   await emailService.sendOTP(email, otp, 'register');
+  //   await this.incrementOTPRateLimit(email);
+
+  //   return {
+  //     success: true,
+  //     message: 'OTP sent to your email. Please verify to complete registration.',
+  //   };
+  // }
   async registerSelf(dto: SelfRegistrationDTO): Promise<{ success: boolean; message: string }> {
-    const { email, firstName, lastName, phoneNumber, password } = dto;
+    const {
+      lookingFor,
+      creatingFor,
+      gender,
+      dob,
+      city,
+      state,
+      country,
+      email,
+      firstName,
+      lastName,
+      phoneNumber,
+      password
+    } = dto;
 
     await this.checkOTPRateLimit(email);
 
@@ -274,49 +574,91 @@ export class AuthService {
     const otpHash = await bcrypt.hash(otp, 10);
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-    if (user && !user.isVerified) {
-      await prisma.user.update({
-        where: { email },
-        data: {
-          role: 'self',
-          firstName,
-          lastName,
-          phoneNumber: phoneNumber || user.phoneNumber,
-          passwordHash,
-          otpHash,
-          otpExpiry,
-          creatingFor: 'self',
-        },
+    // Use transaction to create/update user + profile
+    const result = await prisma.$transaction(async (tx) => {
+      // 1️⃣ CREATE OR UPDATE USER (same as your existing logic)
+      const selfUser = user && !user.isVerified
+        ? await tx.user.update({
+          where: { email },
+          data: {
+            role: 'self',
+            lookingFor,
+            firstName,
+            lastName,
+            phoneNumber: phoneNumber || user.phoneNumber,
+            passwordHash,
+            otpHash,
+            otpExpiry,
+            creatingFor,
+          },
+        })
+        : await tx.user.create({
+          data: {
+            role: 'self',
+            lookingFor,
+            firstName,
+            lastName,
+            email,
+            phoneNumber,
+            passwordHash,
+            isVerified: false,
+            otpHash,
+            otpExpiry,
+            creatingFor,
+          },
+        });
+
+      // 2️⃣ CREATE OR UPDATE PROFILE (same style as parentRegister)
+      let profile = await tx.profile.findUnique({
+        where: { userId: selfUser.id },
       });
 
-      logger.info('Resending OTP to unverified self-registration user', { email });
-    } else {
-      await prisma.user.create({
-        data: {
-          role: 'self',
-          firstName,
-          lastName,
-          email,
-          phoneNumber,
-          passwordHash,
-          isVerified: false,
-          otpHash,
-          otpExpiry,
-          creatingFor: 'self',
-        },
-      });
+      if (!profile) {
+        profile = await tx.profile.create({
+          data: {
+            userId: selfUser.id,
+            gender,
+            dob: new Date(dob),
+            location: {
+              city,
+              state,
+              country,
+            },
+          },
+        });
+      } else {
+        profile = await tx.profile.update({
+          where: { id: profile.id },
+          data: {
+            gender,
+            dob: new Date(dob),
+            location: {
+              city,
+              state,
+              country,
+            },
+          },
+        });
+      }
 
-      logger.info('New self-registration initiated', { email });
-    }
+      return { selfUser, profile };
+    });
 
+    // 3️⃣ Send OTP (unchanged)
     await emailService.sendOTP(email, otp, 'register');
     await this.incrementOTPRateLimit(email);
+
+    logger.info('Self-registration with profile creation', {
+      email,
+      profileId: result.profile.id
+    });
 
     return {
       success: true,
       message: 'OTP sent to your email. Please verify to complete registration.',
     };
   }
+
 
   async registerParent(dto: ParentRegistrationDTO): Promise<{ success: boolean; message: string }> {
     const {
@@ -364,55 +706,55 @@ export class AuthService {
     const result = await prisma.$transaction(async (tx) => {
       const parentUser = existingParent
         ? await tx.user.update({
-            where: { email: parentEmail },
-            data: {
-              role: 'parent',
-              firstName: parentFirstName,
-              lastName: parentLastName,
-              phoneNumber: parentPhoneNumber,
-              passwordHash,
-              otpHash,
-              otpExpiry,
-              lookingFor,
-              creatingFor,
-            },
-          })
+          where: { email: parentEmail },
+          data: {
+            role: 'parent',
+            firstName: parentFirstName,
+            lastName: parentLastName,
+            phoneNumber: parentPhoneNumber,
+            passwordHash,
+            otpHash,
+            otpExpiry,
+            lookingFor,
+            creatingFor,
+          },
+        })
         : await tx.user.create({
-            data: {
-              role: 'parent',
-              firstName: parentFirstName,
-              lastName: parentLastName,
-              email: parentEmail,
-              phoneNumber: parentPhoneNumber,
-              passwordHash,
-              otpHash,
-              otpExpiry,
-              isVerified: false,
-              lookingFor,
-              creatingFor,
-            },
-          });
+          data: {
+            role: 'parent',
+            firstName: parentFirstName,
+            lastName: parentLastName,
+            email: parentEmail,
+            phoneNumber: parentPhoneNumber,
+            passwordHash,
+            otpHash,
+            otpExpiry,
+            isVerified: false,
+            lookingFor,
+            creatingFor,
+          },
+        });
 
       const candidateUser = existingCandidate
         ? await tx.user.update({
-            where: { email: candidateEmail },
-            data: {
-              role: 'candidate',
-              firstName: candidateFirstName,
-              lastName: candidateLastName,
-              phoneNumber: candidatePhoneNumber,
-            },
-          })
+          where: { email: candidateEmail },
+          data: {
+            role: 'candidate',
+            firstName: candidateFirstName,
+            lastName: candidateLastName,
+            phoneNumber: candidatePhoneNumber,
+          },
+        })
         : await tx.user.create({
-            data: {
-              role: 'candidate',
-              firstName: candidateFirstName,
-              lastName: candidateLastName,
-              email: candidateEmail,
-              phoneNumber: candidatePhoneNumber,
-              isVerified: false,
-            },
-          });
+          data: {
+            role: 'candidate',
+            firstName: candidateFirstName,
+            lastName: candidateLastName,
+            email: candidateEmail,
+            phoneNumber: candidatePhoneNumber,
+            isVerified: false,
+          },
+        });
 
       let profile = await tx.profile.findUnique({
         where: { userId: candidateUser.id },
@@ -478,10 +820,10 @@ export class AuthService {
       profileId: result.profile.id,
     });
 
-    logger.info('New parent registration with candidate initiated', { 
-      parentEmail, 
+    logger.info('New parent registration with candidate initiated', {
+      parentEmail,
       candidateEmail,
-      profileId: result.profile.id 
+      profileId: result.profile.id
     });
 
     return {
@@ -648,11 +990,11 @@ export class AuthService {
       relationship,
     });
 
-    logger.info('Guardian invite sent', { 
-      email, 
-      profileId, 
+    logger.info('Guardian invite sent', {
+      email,
+      profileId,
       inviterId,
-      relationship 
+      relationship
     });
 
     return {

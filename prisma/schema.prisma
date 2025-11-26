@@ -31,7 +31,6 @@ model User {
   savedSearches   SavedSearch[]
   interestsSent   Interest[]    @relation("InterestFrom")
   interestsReceived Interest[]  @relation("InterestTo")
-  candidateLink   CandidateLink?
 
   parentLinks     CandidateLink[] @relation("ParentLinks")
   childLinks      CandidateLink[] @relation("ChildLinks")
