@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
-import { RegisterDTO, VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateVerifyDTO } from './auth.dto.js';
+import { RegisterDTO, VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateStartDTO, InviteChildDTO } from './auth.dto.js';
 import { emailService } from './email.service.js';
 import { tokenService } from './token.service.js';
 import { sessionService } from './session.service.js';
@@ -99,7 +99,19 @@ export class AuthService {
       },
     });
 
-    logger.info('User verified successfully', { email, userId: user.id });
+    if (user.role === 'candidate' || user.role === 'guardian') {
+      await prisma.candidateLink.updateMany({
+        where: {
+          childUserId: user.id,
+          status: 'pending',
+        },
+        data: {
+          status: 'active',
+        },
+      });
+    }
+
+    logger.info('User verified successfully', { email, userId: user.id, role: user.role });
 
     const sessionId = await sessionService.createSession(user.id, sessionInfo);
 
@@ -247,7 +259,7 @@ export class AuthService {
   }
 
   async registerSelf(dto: SelfRegistrationDTO): Promise<{ success: boolean; message: string }> {
-    const { email, firstName, lastName, gender, dob, city, state, country, phoneNumber, password, lookingFor } = dto;
+    const { email, firstName, lastName, phoneNumber, password } = dto;
 
     await this.checkOTPRateLimit(email);
 
@@ -269,12 +281,6 @@ export class AuthService {
           role: 'self',
           firstName,
           lastName,
-          gender,
-          dob: new Date(dob),
-          city,
-          state,
-          country,
-          lookingFor,
           phoneNumber: phoneNumber || user.phoneNumber,
           passwordHash,
           otpHash,
@@ -290,12 +296,6 @@ export class AuthService {
           role: 'self',
           firstName,
           lastName,
-          gender,
-          dob: new Date(dob),
-          city,
-          state,
-          country,
-          lookingFor,
           email,
           phoneNumber,
           passwordHash,
@@ -320,19 +320,22 @@ export class AuthService {
 
   async registerParent(dto: ParentRegistrationDTO): Promise<{ success: boolean; message: string }> {
     const {
-      email: parentEmail,
+      parentEmail,
       parentFirstName,
       parentLastName,
-      gender,
-      dob,
-      city,
-      state,
-      country,
+      parentPhoneNumber,
       password,
       candidateEmail,
+      candidateFirstName,
+      candidateLastName,
+      candidateGender,
+      candidateDob,
+      candidateCity,
+      candidateState,
+      candidateCountry,
+      candidatePhoneNumber,
       lookingFor,
       creatingFor,
-      phoneNumber: parentPhone
     } = dto;
 
     await this.checkOTPRateLimit(parentEmail);
@@ -341,169 +344,380 @@ export class AuthService {
       where: { email: parentEmail },
     });
 
-    if (existingParent) {
-      return {
-        success: false,
-        message: 'Email already exists. Please log in instead.',
-      };
+    if (existingParent && existingParent.isVerified) {
+      throw new Error('Email already exists and is verified. Please log in instead.');
     }
 
-    // Create parent user
+    const existingCandidate = await prisma.user.findUnique({
+      where: { email: candidateEmail },
+    });
+
+    if (existingCandidate && existingCandidate.isVerified) {
+      throw new Error('Candidate email already exists and is verified.');
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const otp = this.generateOTP();
     const otpHash = await bcrypt.hash(otp, 10);
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-    const parentUser = await prisma.user.create({
-      data: {
-        role: 'parent',
-        firstName: parentFirstName,
-        lastName: parentLastName,
-        gender,
-        dob: new Date(dob),
-        city,
-        state,
-        country,
-        email: parentEmail,
-        phoneNumber: parentPhone,
-        passwordHash,
-        otpHash,
-        otpExpiry,
-        isVerified: false,
-        candidateEmail,
-        creatingFor,
-        lookingFor
+    const result = await prisma.$transaction(async (tx) => {
+      const parentUser = existingParent
+        ? await tx.user.update({
+            where: { email: parentEmail },
+            data: {
+              role: 'parent',
+              firstName: parentFirstName,
+              lastName: parentLastName,
+              phoneNumber: parentPhoneNumber,
+              passwordHash,
+              otpHash,
+              otpExpiry,
+              lookingFor,
+              creatingFor,
+            },
+          })
+        : await tx.user.create({
+            data: {
+              role: 'parent',
+              firstName: parentFirstName,
+              lastName: parentLastName,
+              email: parentEmail,
+              phoneNumber: parentPhoneNumber,
+              passwordHash,
+              otpHash,
+              otpExpiry,
+              isVerified: false,
+              lookingFor,
+              creatingFor,
+            },
+          });
 
-      },
+      const candidateUser = existingCandidate
+        ? await tx.user.update({
+            where: { email: candidateEmail },
+            data: {
+              role: 'candidate',
+              firstName: candidateFirstName,
+              lastName: candidateLastName,
+              phoneNumber: candidatePhoneNumber,
+            },
+          })
+        : await tx.user.create({
+            data: {
+              role: 'candidate',
+              firstName: candidateFirstName,
+              lastName: candidateLastName,
+              email: candidateEmail,
+              phoneNumber: candidatePhoneNumber,
+              isVerified: false,
+            },
+          });
+
+      let profile = await tx.profile.findUnique({
+        where: { userId: candidateUser.id },
+      });
+
+      if (!profile) {
+        profile = await tx.profile.create({
+          data: {
+            userId: candidateUser.id,
+            gender: candidateGender,
+            dob: new Date(candidateDob),
+            location: {
+              city: candidateCity,
+              state: candidateState,
+              country: candidateCountry,
+            },
+          },
+        });
+      } else {
+        profile = await tx.profile.update({
+          where: { id: profile.id },
+          data: {
+            gender: candidateGender,
+            dob: new Date(candidateDob),
+            location: {
+              city: candidateCity,
+              state: candidateState,
+              country: candidateCountry,
+            },
+          },
+        });
+      }
+
+      const existingLink = await tx.candidateLink.findFirst({
+        where: {
+          profileId: profile.id,
+          parentUserId: parentUser.id,
+          role: 'parent',
+        },
+      });
+
+      if (!existingLink) {
+        await tx.candidateLink.create({
+          data: {
+            profileId: profile.id,
+            parentUserId: parentUser.id,
+            childUserId: candidateUser.id,
+            relationship: creatingFor,
+            role: 'parent',
+            status: 'active',
+          },
+        });
+      }
+
+      return { parentUser, candidateUser, profile };
     });
 
-    // Create CandidateLink record
-    await prisma.candidateLink.create({
-      data: {
-        parentUserId: parentUser.id,
-        candidateEmail,
-        status: 'pending',
-      },
-    });
-
-    // Send OTP to parent's email
     await emailService.sendOTP(parentEmail, otp, 'register');
     await this.incrementOTPRateLimit(parentEmail);
 
-    logger.info('New parent registration initiated', { email: parentEmail, candidateEmail });
+    await emailService.sendCandidateInvite(candidateEmail, {
+      parentName: `${parentFirstName} ${parentLastName}`,
+      profileId: result.profile.id,
+    });
+
+    logger.info('New parent registration with candidate initiated', { 
+      parentEmail, 
+      candidateEmail,
+      profileId: result.profile.id 
+    });
 
     return {
       success: true,
-      message: 'Parent email verified via OTP. Candidate will be notified.',
+      message: 'OTP sent to parent email. Candidate has been invited.',
     };
   }
 
-  async candidateClaim(email: string): Promise<{ success: boolean; message: string }> {
+  async candidateStart(dto: CandidateStartDTO): Promise<{ success: boolean; message: string }> {
+    const { email, password, phoneNumber } = dto;
+
     await this.checkOTPRateLimit(email);
 
-    const candidateLink = await prisma.candidateLink.findFirst({
-      where: { candidateEmail: email },
-    });
+    const candidateUser = await prisma.user.findUnique({ where: { email } });
 
-    if (!candidateLink) {
+    if (!candidateUser) {
       throw new Error('No invitation found for this email address.');
     }
 
-    if (candidateLink.status === 'claimed') {
-      throw new Error('This invitation has already been claimed.');
+    if (candidateUser.role !== 'candidate') {
+      throw new Error('This email is not associated with a candidate account.');
     }
 
+    if (candidateUser.isVerified) {
+      throw new Error('This account is already verified. Please login instead.');
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { userId: candidateUser.id },
+    });
+
+    if (!profile) {
+      throw new Error('Profile not found for this candidate.');
+    }
+
+    let candidateLink = await prisma.candidateLink.findFirst({
+      where: {
+        profileId: profile.id,
+        childUserId: candidateUser.id,
+        role: 'candidate',
+      },
+    });
+
+    if (!candidateLink) {
+      const parentLink = await prisma.candidateLink.findFirst({
+        where: {
+          profileId: profile.id,
+          role: 'parent',
+        },
+      });
+
+      if (!parentLink) {
+        throw new Error('Invalid invitation. Please contact support.');
+      }
+
+      candidateLink = await prisma.candidateLink.create({
+        data: {
+          profileId: profile.id,
+          parentUserId: parentLink.parentUserId,
+          childUserId: candidateUser.id,
+          relationship: 'candidate',
+          role: 'candidate',
+          status: 'pending',
+        },
+      });
+    } else if (candidateLink.status === 'active') {
+      throw new Error('This account is already active. Please login instead.');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
     const otp = this.generateOTP();
     const otpHash = await bcrypt.hash(otp, 10);
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-    await prisma.candidateLink.update({
-      where: { id: candidateLink.id },
-      data: { otpCode: otpHash, otpExpiry },
+    await prisma.user.update({
+      where: { id: candidateUser.id },
+      data: {
+        passwordHash,
+        phoneNumber: phoneNumber || candidateUser.phoneNumber,
+        otpHash,
+        otpExpiry,
+      },
     });
 
     await emailService.sendOTP(email, otp, 'register');
     await this.incrementOTPRateLimit(email);
 
-    logger.info('Candidate claim OTP sent', { email });
+    logger.info('Candidate start OTP sent', { email, profileId: profile.id });
 
     return {
       success: true,
-      message: 'OTP sent to your email. Please verify to claim your profile.',
+      message: 'OTP sent to your email. Please verify to complete your registration.',
     };
   }
 
-  async candidateVerify(dto: CandidateVerifyDTO, sessionInfo: SessionInfo): Promise<AuthResponse> {
-    const { email, otp, password } = dto;
+  async inviteChild(dto: InviteChildDTO, inviterId: string): Promise<{ success: boolean; message: string }> {
+    const { profileId, email, firstName, lastName, phoneNumber, relationship } = dto;
 
-    const candidateLink = await prisma.candidateLink.findFirst({
-      where: { candidateEmail: email },
+    const profile = await prisma.profile.findUnique({
+      where: { id: profileId },
     });
 
-    if (!candidateLink) {
-      throw new Error('Invalid claim request. Please contact support.');
+    if (!profile) {
+      throw new Error('Profile not found.');
     }
 
-    if (!candidateLink.otpCode || !candidateLink.otpExpiry) {
-      throw new Error('No OTP found. Please request a new one.');
-    }
-
-    if (new Date() > candidateLink.otpExpiry) {
-      throw new Error('OTP has expired. Please request a new one.');
-    }
-
-    const isOTPValid = await bcrypt.compare(otp, candidateLink.otpCode);
-
-    if (!isOTPValid) {
-      logger.warn('Invalid candidate claim OTP attempt', { email });
-      throw new Error('Invalid OTP. Please try again.');
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // Create or update candidate account
-    let candidateUser = await prisma.user.findUnique({ where: { email } });
-
-    if (!candidateUser) {
-      candidateUser = await prisma.user.create({
-        data: {
-          role: 'candidate',
-          email,
-          passwordHash,
-          isVerified: true,
-        },
-      });
-    } else {
-      candidateUser = await prisma.user.update({
-        where: { email },
-        data: {
-          role: 'candidate',
-          passwordHash,
-          isVerified: true,
-        },
-      });
-    }
-
-    // Mark CandidateLink as claimed
-    await prisma.candidateLink.update({
-      where: { id: candidateLink.id },
-      data: {
-        status: 'claimed',
-        otpCode: null,
-        otpExpiry: null,
+    const inviterLink = await prisma.candidateLink.findFirst({
+      where: {
+        profileId,
+        OR: [
+          { parentUserId: inviterId },
+          { childUserId: inviterId },
+        ],
+        role: { in: ['parent', 'candidate'] },
+        status: 'active',
       },
     });
 
-    logger.info('Candidate claim verified', { email, candidateUserId: candidateUser.id });
+    if (!inviterLink) {
+      throw new Error('You do not have permission to invite users to this profile.');
+    }
 
-    const sessionId = await sessionService.createSession(candidateUser.id, sessionInfo);
-    const accessToken = tokenService.generateAccessToken(candidateUser.id, candidateUser.email, sessionId);
-    const refreshToken = await tokenService.generateRefreshToken(candidateUser.id, sessionId);
+    let childUser = await prisma.user.findUnique({ where: { email } });
+
+    if (!childUser) {
+      childUser = await prisma.user.create({
+        data: {
+          role: 'guardian',
+          firstName,
+          lastName,
+          email,
+          phoneNumber,
+          isVerified: false,
+        },
+      });
+    }
+
+    const existingLink = await prisma.candidateLink.findFirst({
+      where: {
+        profileId,
+        childUserId: childUser.id,
+      },
+    });
+
+    if (existingLink) {
+      throw new Error('This user has already been invited to this profile.');
+    }
+
+    await prisma.candidateLink.create({
+      data: {
+        profileId,
+        parentUserId: inviterLink.parentUserId,
+        childUserId: childUser.id,
+        relationship,
+        role: 'guardian',
+        status: 'pending',
+      },
+    });
+
+    const inviter = await prisma.user.findUnique({ where: { id: inviterId } });
+
+    await emailService.sendGuardianInvite(email, {
+      inviterName: `${inviter?.firstName || ''} ${inviter?.lastName || ''}`.trim() || 'A family member',
+      relationship,
+    });
+
+    logger.info('Guardian invite sent', { 
+      email, 
+      profileId, 
+      inviterId,
+      relationship 
+    });
 
     return {
-      accessToken,
-      refreshToken,
-      user: this.sanitizeUser(candidateUser),
+      success: true,
+      message: 'Invitation sent successfully.',
+    };
+  }
+
+  async guardianStart(dto: CandidateStartDTO): Promise<{ success: boolean; message: string }> {
+    const { email, password, phoneNumber } = dto;
+
+    await this.checkOTPRateLimit(email);
+
+    const guardianUser = await prisma.user.findUnique({ where: { email } });
+
+    if (!guardianUser) {
+      throw new Error('No invitation found for this email address.');
+    }
+
+    if (guardianUser.role !== 'guardian') {
+      throw new Error('This email is not associated with a guardian account.');
+    }
+
+    if (guardianUser.isVerified) {
+      throw new Error('This account is already verified. Please login instead.');
+    }
+
+    const guardianLink = await prisma.candidateLink.findFirst({
+      where: {
+        childUserId: guardianUser.id,
+        role: 'guardian',
+      },
+    });
+
+    if (!guardianLink) {
+      throw new Error('No invitation found for this email address.');
+    }
+
+    if (guardianLink.status === 'active') {
+      throw new Error('This account is already active. Please login instead.');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const otp = this.generateOTP();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: guardianUser.id },
+      data: {
+        passwordHash,
+        phoneNumber: phoneNumber || guardianUser.phoneNumber,
+        otpHash,
+        otpExpiry,
+      },
+    });
+
+    await emailService.sendOTP(email, otp, 'register');
+    await this.incrementOTPRateLimit(email);
+
+    logger.info('Guardian start OTP sent', { email, profileId: guardianLink.profileId });
+
+    return {
+      success: true,
+      message: 'OTP sent to your email. Please verify to complete your registration.',
     };
   }
 

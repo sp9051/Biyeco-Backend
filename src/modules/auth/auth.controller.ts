@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from './auth.service.js';
-import { VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateClaimDTO, CandidateVerifyDTO } from './auth.dto.js';
+import { VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateStartDTO, InviteChildDTO } from './auth.dto.js';
 import { SessionInfo } from './auth.types.js';
 import { sendSuccess } from '../../utils/response.js';
 
@@ -127,11 +127,11 @@ export class AuthController {
     }
   }
 
-  async candidateClaim(req: Request, res: Response, next: NextFunction) {
+  async candidateStart(req: Request, res: Response, next: NextFunction) {
     try {
-      const dto: CandidateClaimDTO = req.body;
+      const dto: CandidateStartDTO = req.body;
 
-      const result = await authService.candidateClaim(dto.email);
+      const result = await authService.candidateStart(dto);
 
       return sendSuccess(res, result, result.message, 200);
     } catch (error) {
@@ -139,27 +139,30 @@ export class AuthController {
     }
   }
 
-  async candidateVerify(req: Request, res: Response, next: NextFunction) {
+  async guardianStart(req: Request, res: Response, next: NextFunction) {
     try {
-      const dto: CandidateVerifyDTO = req.body;
+      const dto: CandidateStartDTO = req.body;
 
-      const sessionInfo: SessionInfo = {
-        deviceId: req.headers['x-device-id'] as string,
-        ip: (req.headers['x-forwarded-for'] as string) || req.ip,
-        userAgent: req.headers['user-agent'],
-      };
+      const result = await authService.guardianStart(dto);
 
-      const result = await authService.candidateVerify(dto, sessionInfo);
+      return sendSuccess(res, result, result.message, 200);
+    } catch (error) {
+      return next(error);
+    }
+  }
 
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: '/',
-      });
+  async inviteChild(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto: InviteChildDTO = req.body;
+      const userId = (req as any).userId;
 
-      return sendSuccess(res, result, 'Candidate verified successfully', 200);
+      if (!userId) {
+        throw new Error('Unauthorized');
+      }
+
+      const result = await authService.inviteChild(dto, userId);
+
+      return sendSuccess(res, result, result.message, 200);
     } catch (error) {
       return next(error);
     }

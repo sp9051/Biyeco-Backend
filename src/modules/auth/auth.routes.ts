@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authController } from './auth.controller.js';
 import { validate } from '../../middleware/validate.js';
-import { VerifyOTPSchema, LoginSchema, CandidateClaimSchema, CandidateVerifySchema } from './auth.dto.js';
+import { VerifyOTPSchema, LoginSchema, CandidateStartSchema, InviteChildSchema } from './auth.dto.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 
 const router = Router();
@@ -23,8 +23,6 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Register endpoint accepts both self and parent registration
-// Validation is flexible to handle both schemas
 router.post('/register', otpLimiter, authController.register.bind(authController));
 
 router.post('/verify', authLimiter, validate(VerifyOTPSchema), authController.verify.bind(authController));
@@ -37,9 +35,10 @@ router.post('/logout', authenticateToken, authController.logout.bind(authControl
 
 router.get('/me', authenticateToken, authController.me.bind(authController));
 
-// Candidate endpoints
-router.post('/candidate/claim', otpLimiter, validate(CandidateClaimSchema), authController.candidateClaim.bind(authController));
+router.post('/candidate/start', otpLimiter, validate(CandidateStartSchema), authController.candidateStart.bind(authController));
 
-router.post('/candidate/verify', authLimiter, validate(CandidateVerifySchema), authController.candidateVerify.bind(authController));
+router.post('/guardian/start', otpLimiter, validate(CandidateStartSchema), authController.guardianStart.bind(authController));
+
+router.post('/invite-child', authenticateToken, validate(InviteChildSchema), authController.inviteChild.bind(authController));
 
 export default router;

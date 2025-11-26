@@ -11,8 +11,6 @@ export const RegisterSchema = z.object({
 });
 
 export const SelfRegistrationSchema = z.object({
-  // lookingFor: z.enum(['bride', 'groom']),
-  // creatingFor: z.literal('self'),
   lookingFor: z.string(),
   creatingFor: z.string(),
   firstName: z.string().min(2),
@@ -28,26 +26,37 @@ export const SelfRegistrationSchema = z.object({
 });
 
 export const ParentRegistrationSchema = z.object({
-  // lookingFor: z.enum(['bride', 'groom']),
-  // creatingFor: z.enum(['brother', 'sister', 'son', 'daughter', 'nephew', 'niece']),
   lookingFor: z.string(),
   creatingFor: z.string(),
-  // Candidate details
-  firstName: z.string().min(2),
-  lastName: z.string().min(2),
-  gender: z.string(),
-  dob: z.string(),
-  city: z.string(),
-  state: z.string(),
-  country: z.string(),
-  // Parent details
+  candidateFirstName: z.string().min(2),
+  candidateLastName: z.string().min(2),
+  candidateGender: z.string(),
+  candidateDob: z.string(),
+  candidateCity: z.string(),
+  candidateState: z.string(),
+  candidateCountry: z.string(),
+  candidateEmail: z.string().email(),
+  candidatePhoneNumber: z.string().optional(),
   parentFirstName: z.string().min(2),
   parentLastName: z.string().min(2),
-  email: z.string().email(),
-  phoneNumber: z.string().optional(),
+  parentEmail: z.string().email(),
+  parentPhoneNumber: z.string().optional(),
   password: z.string().min(8),
-  candidateEmail: z.string().email(),
-  candidatePhone: z.string().optional(),
+});
+
+export const CandidateStartSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  phoneNumber: z.string().optional(),
+});
+
+export const InviteChildSchema = z.object({
+  profileId: z.string().uuid('Invalid profile ID'),
+  email: z.string().email('Invalid email address'),
+  firstName: z.string().min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
+  phoneNumber: z.string().optional(),
+  relationship: z.string().min(1, 'Relationship is required'),
 });
 
 export const VerifyOTPSchema = z.object({
@@ -77,6 +86,8 @@ export const CandidateVerifySchema = z.object({
 export type RegisterDTO = z.infer<typeof RegisterSchema>;
 export type SelfRegistrationDTO = z.infer<typeof SelfRegistrationSchema>;
 export type ParentRegistrationDTO = z.infer<typeof ParentRegistrationSchema>;
+export type CandidateStartDTO = z.infer<typeof CandidateStartSchema>;
+export type InviteChildDTO = z.infer<typeof InviteChildSchema>;
 export type VerifyOTPDTO = z.infer<typeof VerifyOTPSchema>;
 export type LoginDTO = z.infer<typeof LoginSchema>;
 export type RefreshTokenDTO = z.infer<typeof RefreshTokenSchema>;

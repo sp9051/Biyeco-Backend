@@ -32,6 +32,10 @@ model User {
   interestsSent   Interest[]    @relation("InterestFrom")
   interestsReceived Interest[]  @relation("InterestTo")
   candidateLink   CandidateLink?
+
+  parentLinks     CandidateLink[] @relation("ParentLinks")
+  childLinks      CandidateLink[] @relation("ChildLinks")
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -39,16 +43,23 @@ model User {
 }
 
 model CandidateLink {
-  id            String   @id @default(uuid())
-  parentUserId  String   @unique
-  candidateEmail String
-  status        String   @default("pending") // pending | claimed
-  otpCode       String?
-  otpExpiry     DateTime?
-  createdAt     DateTime @default(now())
+  id             String   @id @default(uuid())
+  profileId      String
+  parentUserId   String
+  childUserId    String?
+  relationship   String?
+  role           String   @default("parent")
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
 
-  parentUser  User @relation(fields: [parentUserId], references: [id], onDelete: Cascade)
+  profile      Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  parentUser   User    @relation("ParentLinks", fields: [parentUserId], references: [id])
+  childUser    User?   @relation("ChildLinks", fields: [childUserId], references: [id])
 
+  @@index([profileId])
+  @@index([parentUserId])
+  @@index([childUserId])
+  @@index([status])
   @@map("candidate_links")
 }
 
@@ -125,12 +136,13 @@ model Profile {
   prefSmokingHabit       String?
   prefDrinkingHabit      String?
 
-  photos       Photo[]
-  preferences  Preference?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  deletedAt    DateTime?
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos         Photo[]
+  preferences    Preference?
+  candidateLinks CandidateLink[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  deletedAt      DateTime?
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([published])
   @@index([gender])

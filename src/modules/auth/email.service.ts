@@ -77,6 +77,94 @@ export class EmailService {
       logger.error(`[EmailService] Failed to send welcome email to ${email}`, { error });
     }
   }
+
+  async sendCandidateInvite(
+    email: string,
+    data: { parentName: string; profileId: string }
+  ): Promise<void> {
+    logger.info(`[EmailService] Sending candidate invite to ${email}`, {
+      parentName: data.parentName,
+      profileId: data.profileId,
+    });
+
+    const inviteLink = `${process.env.FRONTEND_URL || 'https://biye.com'}/candidate/start?email=${encodeURIComponent(email)}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>You've Been Invited to Biye!</h2>
+        <p>Hi there,</p>
+        <p><strong>${data.parentName}</strong> has created a matrimonial profile for you on Biye.</p>
+        <p>To claim your profile and set up your login, please click the link below:</p>
+        <p style="margin: 20px 0;">
+          <a href="${inviteLink}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+            Claim Your Profile
+          </a>
+        </p>
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #666;">${inviteLink}</p>
+        <hr style="margin-top: 20px; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #888; font-size: 12px;">This is an automated email from Biye. Please do not reply.</p>
+      </div>
+    `;
+
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || '"Biye" <noreply@biye.com>',
+        to: email,
+        subject: `${data.parentName} has created a profile for you on Biye`,
+        html,
+      });
+
+      logger.info(`[EmailService] Candidate invite sent successfully to ${email}`);
+    } catch (error) {
+      logger.error(`[EmailService] Failed to send candidate invite to ${email}`, { error });
+      throw new Error('Failed to send candidate invite email');
+    }
+  }
+
+  async sendGuardianInvite(
+    email: string,
+    data: { inviterName: string; relationship: string }
+  ): Promise<void> {
+    logger.info(`[EmailService] Sending guardian invite to ${email}`, {
+      inviterName: data.inviterName,
+      relationship: data.relationship,
+    });
+
+    const inviteLink = `${process.env.FRONTEND_URL || 'https://biye.com'}/guardian/start?email=${encodeURIComponent(email)}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>You've Been Invited to Help Manage a Profile on Biye!</h2>
+        <p>Hi there,</p>
+        <p><strong>${data.inviterName}</strong> has invited you to help manage a matrimonial profile on Biye as <strong>${data.relationship}</strong>.</p>
+        <p>To accept the invitation and set up your login, please click the link below:</p>
+        <p style="margin: 20px 0;">
+          <a href="${inviteLink}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+            Accept Invitation
+          </a>
+        </p>
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #666;">${inviteLink}</p>
+        <hr style="margin-top: 20px; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #888; font-size: 12px;">This is an automated email from Biye. Please do not reply.</p>
+      </div>
+    `;
+
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || '"Biye" <noreply@biye.com>',
+        to: email,
+        subject: `${data.inviterName} has invited you to Biye`,
+        html,
+      });
+
+      logger.info(`[EmailService] Guardian invite sent successfully to ${email}`);
+    } catch (error) {
+      logger.error(`[EmailService] Failed to send guardian invite to ${email}`, { error });
+      throw new Error('Failed to send guardian invite email');
+    }
+  }
 }
 
 export const emailService = new EmailService();

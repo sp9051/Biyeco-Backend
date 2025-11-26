@@ -260,3 +260,31 @@ Required configuration:
 **Testing Documentation**
 - Chat Module: `CHAT_MODULE_README.md` - Complete testing guide for REST and Socket.IO features
 - Discovery/Search Module: `DISCOVERY_SEARCH_MODULE_README.md` - Testing guide for discovery features
+
+## Recent Changes
+
+### Registration Architecture Update (November 2025)
+
+**New Registration Flows:**
+1. **Self Registration** - User creates their own account and profile (User for login, Profile for biodata)
+2. **Parent Registration** - Parent creates candidate's profile; candidate is invited to claim it later
+3. **Candidate Onboarding** - Invited candidate sets password and verifies OTP to gain access
+4. **Guardian Invites** - Additional family members can be invited to manage a profile
+
+**Schema Changes (CandidateLink):**
+- New fields: `profileId`, `childUserId`, `relationship`, `role`
+- `role` values: 'parent' | 'candidate' | 'guardian'
+- `status` values: 'pending' | 'active' | 'revoked'
+- Supports one parent managing multiple profiles
+- Supports multiple users managing one profile
+
+**New API Endpoints:**
+- `POST /auth/candidate/start` - Candidate claims profile (sets password, receives OTP)
+- `POST /auth/guardian/start` - Guardian accepts invite (sets password, receives OTP)
+- `POST /auth/invite-child` - Authenticated user invites additional guardian to profile
+
+**Migration Note:**
+Run Prisma migrations manually after updating the schema:
+```bash
+npx prisma migrate dev --name registration_architecture_update
+```
