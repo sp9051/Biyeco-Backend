@@ -323,13 +323,30 @@ export class AuthService {
       email: parentEmail,
       parentFirstName,
       parentLastName,
+      gender,
+      dob,
+      city,
+      state,
+      country,
       password,
       candidateEmail,
+      lookingFor,
       creatingFor,
-      phoneNumber: parentPhone,
+      phoneNumber: parentPhone
     } = dto;
 
     await this.checkOTPRateLimit(parentEmail);
+
+    const existingParent = await prisma.user.findUnique({
+      where: { email: parentEmail },
+    });
+
+    if (existingParent) {
+      return {
+        success: false,
+        message: 'Email already exists. Please log in instead.',
+      };
+    }
 
     // Create parent user
     const passwordHash = await bcrypt.hash(password, 10);
@@ -342,6 +359,11 @@ export class AuthService {
         role: 'parent',
         firstName: parentFirstName,
         lastName: parentLastName,
+        gender,
+        dob: new Date(dob),
+        city,
+        state,
+        country,
         email: parentEmail,
         phoneNumber: parentPhone,
         passwordHash,
@@ -350,6 +372,8 @@ export class AuthService {
         isVerified: false,
         candidateEmail,
         creatingFor,
+        lookingFor
+
       },
     });
 
