@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { notificationController } from './notification.controller.js';
+import { deviceTokenController } from './deviceToken.controller.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 import { validate } from '../../middleware/validate.js';
 import { UpdatePreferencesSchema } from './notification.dto.js';
 
 const router = Router();
 
+// Notification endpoints
 router.get(
   '/',
   authenticateToken,
@@ -41,6 +43,19 @@ router.patch(
   authenticateToken,
   validate(UpdatePreferencesSchema),
   notificationController.updatePreferences.bind(notificationController)
+);
+
+// Device token endpoints
+router.post(
+  '/device-token',
+  authenticateToken,
+  deviceTokenController.saveDeviceToken.bind(deviceTokenController)
+);
+
+router.delete(
+  '/device-token/:token',
+  authenticateToken,
+  deviceTokenController.deleteDeviceToken.bind(deviceTokenController)
 );
 
 export default router;

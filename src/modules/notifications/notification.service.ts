@@ -178,10 +178,38 @@ class NotificationService {
   }
 
   private async sendPush(payload: PushPayload): Promise<void> {
-    logger.info('Push notification queued (FCM stub)', {
-      userId: payload.userId,
-      title: payload.title,
-    });
+    try {
+      const deviceTokens = await prisma.deviceToken.findMany({
+        where: { userId: payload.userId },
+        select: { token: true },
+      });
+
+      if (deviceTokens.length === 0) {
+        logger.info('No device tokens found for push notification', {
+          userId: payload.userId,
+          title: payload.title,
+        });
+        return;
+      }
+
+      // Import FCM client and send to all device tokens
+      const { sendPushNotification: sendFCM } = await import('./fcm.client.js');
+
+      for (const deviceToken of deviceTokens) {
+        await sendFCM(deviceToken.token, payload.title, payload.body, payload.data || {});
+      }
+
+      logger.info('Push notifications sent via FCM', {
+        userId: payload.userId,
+        title: payload.title,
+        tokenCount: deviceTokens.length,
+      });
+    } catch (error) {
+      logger.error('Failed to send push notifications', {
+        userId: payload.userId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   }
 
   private formatNotificationResponse(notification: Notification): NotificationResponse {

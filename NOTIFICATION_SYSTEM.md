@@ -1397,6 +1397,214 @@ This creates:
 
 ---
 
+## Push Notifications with Firebase Cloud Messaging (FCM)
+
+### Setup Requirements
+
+**1. Install Firebase Admin SDK (Manual)**
+
+```bash
+npm install firebase-admin
+```
+
+**Do NOT install automatically — add to your package.json manually.**
+
+**2. Environment Variables**
+
+Add to your `.env` file:
+
+```bash
+FCM_PROJECT_ID=your-firebase-project-id
+FCM_CLIENT_EMAIL=your-service-account-email@project.iam.gserviceaccount.com
+FCM_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+**Obtain these credentials from Firebase Console:**
+1. Go to Project Settings → Service Accounts
+2. Click "Generate New Private Key"
+3. Copy projectId, clientEmail, and privateKey
+
+### How Push Notifications Work
+
+```
+Mobile App (Client)
+   ↓ (gets FCM token from Firebase SDK)
+   ↓ POST /api/v1/notifications/device-token
+   ↓ (sends { token: "fcm-token-xxx" })
+Backend API
+   ↓ (saves token in DeviceToken table)
+   ↓ (stores: userId, token)
+   ↓
+Another Module Emits Event
+   ├─ eventBus.emitNotification({ userId, type, ... })
+   ↓
+NotificationDispatcher
+   ├─ Gets user preferences (pushEnabled = true)
+   ├─ Gets notification template
+   ├─ Queries DeviceToken table
+   │  └─ Gets all tokens for this userId
+   ├─ For each token:
+   │  ├─ Calls sendPushNotification(token, title, body, metadata)
+   │  └─ FCM Client:
+   │     ├─ Initializes Firebase Admin SDK
+   │     ├─ Calls admin.messaging().send(message)
+   │     └─ FCM delivers to device
+   ↓
+Mobile App (Device)
+   └─ Receives push notification
+```
+
+### Device Token Management
+
+**Register Device Token**
+
+Call this when user installs/updates app:
+
+```bash
+POST /api/v1/notifications/device-token
+Authorization: Bearer $TOKEN
+Content-Type: application/json
+
+{
+  "token": "d5-sZtd-1nB0d6qF-E9K7mL-pQ2wX3yZ9aB5cD8eF..."
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "userId": "550e8400-e29b-41d4-a716-446655440001",
+    "token": "d5-sZtd-1nB0d6qF-E9K7mL-pQ2wX3yZ9aB5cD8eF..."
+  }
+}
+```
+
+**Delete Device Token**
+
+Call when user logs out or uninstalls:
+
+```bash
+DELETE /api/v1/notifications/device-token/d5-sZtd-1nB0d6qF-E9K7mL-pQ2wX3yZ9aB5cD8eF...
+Authorization: Bearer $TOKEN
+```
+
+### New Files & Changes
+
+**New FCM Client** (`fcm.client.ts`)
+- `initFCM()` - Initializes Firebase Admin SDK with credentials
+- `sendPushNotification(token, title, body, metadata)` - Sends push via FCM
+
+**New Device Token Management** 
+- `deviceToken.service.ts` - CRUD operations for device tokens
+- `deviceToken.controller.ts` - HTTP endpoints for device token registration/deletion
+
+**Updated Notification Service**
+- `notification.service.ts` - Modified `sendPush()` to query DeviceToken table and call FCM for each token
+
+**Updated Routes**
+- `notification.routes.ts` - Added 2 new endpoints:
+  - `POST /api/v1/notifications/device-token`
+  - `DELETE /api/v1/notifications/device-token/:token`
+
+**Updated Database Schema**
+- `prisma/schema.prisma` - Added DeviceToken model with userId and token fields
+
+### Integration with Mobile Apps
+
+**React Native / Expo Example**
+
+```javascript
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Get FCM token when user logs in
+async function registerForPushNotifications(authToken) {
+  try {
+    const { data } = await Notifications.getPermissionsAsync();
+    if (data.granted) {
+      const token = (await Notifications.getExpoPushTokenAsync()).data;
+      
+      // Send token to backend
+      const response = await fetch(
+        'https://api.biye.com/api/v1/notifications/device-token',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token }),
+        }
+      );
+      
+      if (response.ok) {
+        console.log('Device token registered');
+      }
+    }
+  } catch (error) {
+    console.error('Push notification setup failed:', error);
+  }
+}
+
+// Handle incoming push notifications
+Notifications.setNotificationHandler({
+  handleNotification: async (notification) => {
+    console.log('Push received:', notification);
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    };
+  },
+});
+```
+
+**Web/Flutter/Native Android/iOS:**
+- Follow Firebase SDK documentation for your platform
+- Send FCM token to `POST /api/v1/notifications/device-token`
+
+### Testing Push Notifications
+
+**Test with Firebase Console**
+
+1. Go to Firebase Console → Cloud Messaging
+2. Create new notification
+3. Select your app
+4. Send test message to a registered device token
+
+**Or test via API**
+
+```bash
+# 1. Get auth token
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com"}'
+
+# 2. Register device token
+curl -X POST http://localhost:3000/api/v1/notifications/device-token \
+  -H "Authorization: Bearer $AUTH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"token":"your-test-token"}'
+
+# 3. Trigger notification (via another module or direct event)
+# This will send push to all registered tokens
+```
+
+### Production Checklist
+
+- [ ] Firebase credentials stored in environment variables (NOT in code)
+- [ ] FCM enabled in Firebase Console
+- [ ] Device tokens properly stored in database
+- [ ] Token rotation handled (re-register on app update)
+- [ ] Error handling for invalid/expired tokens
+- [ ] Monitoring of FCM send success/failure rates
+- [ ] Database migration run: `npx prisma migrate deploy`
+
+---
+
 ## Support & Contact
 
 For issues, questions, or contributions:
