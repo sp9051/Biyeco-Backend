@@ -856,42 +856,153 @@ Body: "Your photo requires attention: Image quality too low"
 
 ## Preferences Management
 
-### Default Behavior
+### Purpose of Notification Preferences
 
-When a user is created, their notification preferences are automatically initialized to:
+Notification preferences exist to **give users complete control over how, when, and which types of notifications they receive**. They are the bridge between what the system wants to deliver and what the user actually wants to receive.
 
-```json
-{
-  "emailEnabled": true,
-  "pushEnabled": true,
-  "inAppEnabled": true
-}
-```
+### What Notification Preferences Are Doing
 
-### How Preferences Affect Delivery
+Notification Preferences solve three critical problems:
 
-The dispatcher checks preferences before each delivery attempt:
+1. **User Autonomy** - Users shouldn't be forced to receive notifications on channels they don't want
+2. **Notification Fatigue** - Excessive emails/push notifications can overwhelm users
+3. **Channel Flexibility** - Different users prefer different communication methods (some want emails, others only in-app)
+
+### The NotificationPreference Model
 
 ```typescript
-const preferences = await notificationPreferenceService.getPreferences(userId);
-
-if (config.deliveryMethods.includes('email') && preferences.emailEnabled) {
-  // Send email
-}
-
-if (config.deliveryMethods.includes('push') && preferences.pushEnabled) {
-  // Queue push notification
-}
-
-if (config.deliveryMethods.includes('in_app') && preferences.inAppEnabled) {
-  // Create in-app notification
+interface NotificationPreference {
+  id: UUID;
+  userId: UUID;                    // Which user owns these preferences
+  emailEnabled: boolean;           // Should notifications be sent via email?
+  pushEnabled: boolean;            // Should notifications be sent via push (FCM)?
+  inAppEnabled: boolean;           // Should notifications be saved in-app?
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
-### Scenarios
+### Default Behavior
 
-**Scenario 1: User disables emails**
+When a user signs up, their notification preferences are **automatically created with all channels enabled**:
 
+```json
+{
+  "emailEnabled": true,
+  "pushEnabled": true,
+  "inAppEnabled": true
+}
+```
+
+This ensures:
+- New users get full notification experience by default
+- Users can opt-out of channels they don't want
+- In-app notifications always remain (users can see them in the app)
+
+### How Preferences Work in the System Flow
+
+Here's the complete flow showing where preferences are checked:
+
+```
+Step 1: Another module emits a notification
+   └─ Chat Module: "New message from Sarah"
+   └─ eventBus.emitNotification({ userId, type, metadata, priority })
+
+Step 2: Event Bus receives the event
+   └─ Passes to NotificationDispatcher
+
+Step 3: Dispatcher adds to queue
+   ├─ If IMMEDIATE priority → Process immediately
+   └─ If HIGH/LOW priority → Add to queue with scheduled time
+
+Step 4: Dispatcher processes the notification
+   ├─ Get notification template
+   │  └─ Find template for "new_message" type
+   │     └─ Template includes: title, body, email HTML, delivery methods
+   │
+   └─ GET USER PREFERENCES ← THIS IS THE KEY STEP
+      └─ Query NotificationPreference table
+      └─ Retrieve: emailEnabled, pushEnabled, inAppEnabled
+
+Step 5: Determine which channels to use
+   ├─ Template says: "Deliver via email + push + in-app"
+   ├─ Preferences say: "emailEnabled=false, pushEnabled=true, inAppEnabled=true"
+   │
+   └─ INTERSECTION = delivery channels to use
+      ├─ Email → emailEnabled=false → SKIP
+      ├─ Push → pushEnabled=true → SEND
+      └─ In-App → inAppEnabled=true → SEND
+
+Step 6: Deliver via final channels
+   ├─ Create in-app notification in database
+   └─ Queue push notification (FCM stub)
+
+Step 7: User views notification
+   └─ Available in app
+   └─ In their push notifications (if configured)
+   └─ NO email sent (because emailEnabled=false)
+```
+
+### Code: How Dispatcher Uses Preferences
+
+```typescript
+// File: src/modules/notifications/notification.dispatcher.ts
+
+async processNotification(notification: QueuedNotification) {
+  try {
+    // Get the user's notification preferences
+    const preferences = await notificationPreferenceService.getPreferences(
+      notification.userId
+    );
+    
+    // Get the template for this notification type
+    const template = templates[notification.type];
+    
+    // Determine which channels to actually use
+    // (intersection of what template wants + what user preferences allow)
+    const channelsToUse: Channel[] = [];
+    
+    if (template.deliveryMethods.includes('email') && preferences.emailEnabled) {
+      channelsToUse.push('email');
+    }
+    
+    if (template.deliveryMethods.includes('push') && preferences.pushEnabled) {
+      channelsToUse.push('push');
+    }
+    
+    // In-app is special: always delivered if preferences.inAppEnabled
+    if (preferences.inAppEnabled) {
+      channelsToUse.push('in_app');
+    }
+    
+    // Now deliver via only the channels in channelsToUse
+    for (const channel of channelsToUse) {
+      if (channel === 'email') {
+        await notificationService.sendEmail(notification);
+      }
+      if (channel === 'push') {
+        await notificationService.queuePush(notification);
+      }
+      if (channel === 'in_app') {
+        await notificationService.createInAppNotification(notification);
+      }
+    }
+    
+    // Mark as delivered
+    this.removeFromQueue(notification.id);
+    
+  } catch (error) {
+    // Retry logic with exponential backoff
+    this.rescheduleForRetry(notification);
+  }
+}
+```
+
+### Real-World Scenarios
+
+**Scenario 1: User disables emails (wants only push + in-app)**
+
+User's Preferences:
 ```json
 {
   "emailEnabled": false,
@@ -900,26 +1011,15 @@ if (config.deliveryMethods.includes('in_app') && preferences.inAppEnabled) {
 }
 ```
 
-When an IMMEDIATE priority notification is sent:
-- Email → SKIPPED
-- In-App → SENT
+**When IMMEDIATE priority notification arrives:**
+- Template says: "Deliver via email + in-app" (typical for IMMEDIATE)
+- Preferences allow: "push + in-app"
+- System delivers via: **in-app only** (intersection is only in-app)
+- Email: ❌ SKIPPED (emailEnabled=false)
 
-**Scenario 2: User disables all push**
+**Scenario 2: User only wants in-app (opted out of all emails/push)**
 
-```json
-{
-  "emailEnabled": true,
-  "pushEnabled": false,
-  "inAppEnabled": true
-}
-```
-
-When a HIGH priority notification is sent:
-- Push → SKIPPED
-- In-App → SENT
-
-**Scenario 3: User only wants in-app**
-
+User's Preferences:
 ```json
 {
   "emailEnabled": false,
@@ -928,7 +1028,148 @@ When a HIGH priority notification is sent:
 }
 ```
 
-All notifications → In-app only
+**When HIGH priority notification arrives:**
+- Template says: "Deliver via push + in-app"
+- Preferences allow: "in-app only"
+- System delivers via: **in-app only**
+- Email: ❌ SKIPPED
+- Push: ❌ SKIPPED
+
+**Scenario 3: User wants everything (new user default)**
+
+User's Preferences:
+```json
+{
+  "emailEnabled": true,
+  "pushEnabled": true,
+  "inAppEnabled": true
+}
+```
+
+**When any notification arrives:**
+- Template says: "Deliver via [channels based on priority]"
+- Preferences allow: "all channels"
+- System delivers via: **all template-specified channels**
+- Everything goes through! ✅
+
+### Preference Initialization
+
+When a new user registers, their preferences are automatically created:
+
+```typescript
+// File: src/modules/notifications/notificationPreference.service.ts
+
+async createDefaultPreferences(userId: string) {
+  return await prisma.notificationPreference.create({
+    data: {
+      userId,
+      emailEnabled: true,      // Default: receive emails
+      pushEnabled: true,       // Default: receive push
+      inAppEnabled: true       // Default: see in-app
+    }
+  });
+}
+
+// Called automatically when user signs up
+```
+
+### User Updates Preferences
+
+Users can update their preferences via the API:
+
+```typescript
+// File: notification.controller.ts
+
+async updatePreferences(req: Request, res: Response) {
+  const { emailEnabled, pushEnabled, inAppEnabled } = req.body;
+  
+  // Validate: only provided fields are updated
+  const updated = await notificationPreferenceService.updatePreferences(
+    req.userId,
+    {
+      ...(emailEnabled !== undefined && { emailEnabled }),
+      ...(pushEnabled !== undefined && { pushEnabled }),
+      ...(inAppEnabled !== undefined && { inAppEnabled })
+    }
+  );
+  
+  return res.json({ success: true, data: updated });
+}
+```
+
+Example: User doesn't want emails anymore
+
+```bash
+PATCH /api/v1/notifications/preferences
+Content-Type: application/json
+Authorization: Bearer $TOKEN
+
+{
+  "emailEnabled": false
+}
+```
+
+After this update:
+- ✅ User receives push notifications
+- ✅ User receives in-app notifications
+- ❌ User receives NO emails
+
+### Database Query Flow
+
+**Step 1: Get preferences**
+```sql
+SELECT emailEnabled, pushEnabled, inAppEnabled 
+FROM notification_preferences 
+WHERE userId = $1;
+
+-- Returns: { emailEnabled: false, pushEnabled: true, inAppEnabled: true }
+```
+
+**Step 2: Filter delivery channels**
+```typescript
+// Channel Logic
+const wantEmail = result.emailEnabled === true;        // false
+const wantPush = result.pushEnabled === true;          // true
+const wantInApp = result.inAppEnabled === true;        // true
+
+// Only deliver to channels where preference is true
+if (wantEmail) await sendEmail(...);      // SKIP
+if (wantPush) await queuePush(...);       // YES
+if (wantInApp) await saveInApp(...);      // YES
+```
+
+### Why This Matters
+
+Without preferences:
+- Users would be bombarded with emails even if they don't want them
+- Every notification would go to every channel
+- Users would disable notifications entirely (missing important updates)
+- Poor user experience and higher unsubscribe rates
+
+With preferences:
+- Users control their own experience
+- Notifications respect user choice
+- Better engagement (users don't disable notifications)
+- Better compliance with privacy expectations
+
+### Technical Details
+
+**Preference Lookup Performance:**
+- Preferences are queried on **every notification delivery**
+- Optimized with index on `userId` (PRIMARY KEY)
+- Typical query time: < 1ms
+- Consider caching in Redis for high-volume systems
+
+**Atomic Updates:**
+- Preferences are updated atomically via Prisma
+- No race conditions if user updates multiple times
+- Last write wins (Prisma handles it)
+
+**Fallback Behavior:**
+- If user has no preferences (rare edge case)
+  - System creates default preferences automatically
+  - Defaults to all channels enabled
+  - Ensures notifications always go out
 
 ---
 
