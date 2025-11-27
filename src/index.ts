@@ -15,6 +15,7 @@ import profilePhotosRoutes from './modules/profile/profile.photos.routes.js';
 import discoveryRoutes from './modules/discovery/discovery.routes.js';
 import searchRoutes from './modules/search/search.routes.js';
 import connectionsRoutes from './modules/connections/connections.routes.js';
+import notificationRoutes from './modules/notifications/notification.routes.js';
 import path from 'path';
 
 export function createApp() {
@@ -50,6 +51,7 @@ export function createApp() {
   app.use('/api/v1/discovery', discoveryRoutes);
   app.use('/api/v1/search', searchRoutes);
   app.use('/api/v1/connections', connectionsRoutes);
+  app.use('/api/v1/notifications', notificationRoutes);
   app.use('/uploads', express.static(path.resolve('uploads')));
 
   app.use((_req: Request, res: Response) => {
