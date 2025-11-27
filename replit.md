@@ -288,3 +288,57 @@ Run Prisma migrations manually after updating the schema:
 ```bash
 npx prisma migrate dev --name registration_architecture_update
 ```
+
+### Notification System Module (November 2025)
+
+**Architecture:**
+- Event-driven notification system with publish/subscribe pattern
+- In-app notification persistence with Prisma
+- Email notifications via Nodemailer (stub - configure SMTP for production)
+- Push notification queue (FCM stub - configure credentials for production)
+- Priority-based delivery: IMMEDIATE (email + in-app), HIGH (push + in-app), LOW (in-app only)
+- User notification preferences support
+
+**New Models:**
+- `Notification` - In-app notifications with type, title, body, metadata, read status
+- `NotificationPreference` - Per-user settings for email, push, and in-app delivery
+
+**Event Bus (`src/events/eventBus.ts`):**
+```typescript
+import { eventBus } from './events/eventBus.js';
+
+// Emit notification from any module
+eventBus.emitNotification({
+  userId: "user-uuid",
+  type: "interest_received",
+  metadata: { fromName: "John" },
+  priority: "HIGH" // Optional: IMMEDIATE | HIGH | LOW
+});
+```
+
+**Notification Types:**
+- `otp` - Email verification codes
+- `interest_received` - Someone showed interest in user's profile
+- `interest_accepted` - User's interest was accepted
+- `new_message` - New chat message received
+- `profile_view` - Someone viewed user's profile
+- `guardian_added` - User added as guardian
+- `subscription` - Subscription purchase/expiry
+- `moderation` - Profile/photo moderation updates
+
+**New REST Endpoints (JWT Protected):**
+- `GET /api/v1/notifications` - List notifications (paginated, filterable)
+- `GET /api/v1/notifications/unread-count` - Get unread notification count
+- `PATCH /api/v1/notifications/:id/read` - Mark notification as read
+- `PATCH /api/v1/notifications/read-all` - Mark all notifications as read
+- `GET /api/v1/notifications/preferences` - Get notification preferences
+- `PATCH /api/v1/notifications/preferences` - Update notification preferences
+
+**OpenAPI Documentation:**
+- Notification API: `openapi.notifications.yml`
+
+**Migration Note:**
+Run Prisma migrations manually after adding notification models:
+```bash
+npx prisma migrate dev --name add_notification_system
+```
