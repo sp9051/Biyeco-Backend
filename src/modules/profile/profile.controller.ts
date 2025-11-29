@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { profileService } from './profile.service.js';
-import { profilePermissions } from './profile.permissions.js';
 import { CreateProfileDTO, StepUpdateDTO } from './profile.dto.js';
 import { RequesterContext } from './profile.types.js';
 import { sendSuccess } from '../../utils/response.js';
