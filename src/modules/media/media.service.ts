@@ -103,12 +103,12 @@ export class MediaService {
 
     /*It will be validated later*/
 
-    // const canView = await this.checkPhotoViewPermission(photo, requesterId);
-    // console.log("canView: ", canView)
+    const canView = await this.checkPhotoViewPermission(photo, requesterId);
+    console.log("canView: ", canView)
 
-    // if (!canView) {
-    //   return null;
-    // }
+    if (!canView) {
+      return null;
+    }
     /*It will be validated later*/
 
 
@@ -171,20 +171,66 @@ export class MediaService {
     }
   }
 
+  // private async authorizeProfileOwner(profileId: string, userId: string): Promise<void> {
+  //   const profile = await prisma.profile.findUnique({
+  //     where: { id: profileId },
+  //     select: { userId: true },
+  //   });
+
+  //   if (!profile) {
+  //     throw new Error('Profile not found');
+  //   }
+
+  //   if (profile.userId !== userId) {
+  //     throw new Error('Unauthorized: You can only upload photos to your own profile');
+  //   }
+  // }
+
   private async authorizeProfileOwner(profileId: string, userId: string): Promise<void> {
     const profile = await prisma.profile.findUnique({
       where: { id: profileId },
-      select: { userId: true },
+      select: { id: true, userId: true },
     });
 
     if (!profile) {
       throw new Error('Profile not found');
     }
 
-    if (profile.userId !== userId) {
-      throw new Error('Unauthorized: You can only upload photos to your own profile');
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error('user not found');
     }
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      if (profile.userId !== userId) {
+        throw new Error('Unauthorized: You can only upload photos to your own profile');
+      }
+      return;
+    }
+
+    if (user.role === 'parent') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: userId,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      if (!link || link.profile.userId !== profile.userId) {
+        throw new Error('Unauthorized: You can only upload photos to a linked candidate profile');
+      }
+
+      return;
+    }
+
+    // Any other role is not allowed
+    throw new Error('Unauthorized: You do not have permission to upload photos to this profile');
   }
+
 
   private generateObjectKey(profileId: string, filename: string): string {
     const uuid = randomUUID();
@@ -224,23 +270,75 @@ export class MediaService {
     }
   }
 
+  // private async checkPhotoViewPermission(photo: any, requesterId?: string): Promise<boolean> {
+  //   if (photo.moderationStatus !== 'approved' && photo.profile.userId !== requesterId) {
+  //     return false;
+  //   }
+
+  //   if (photo.privacyLevel === 'public') {
+  //     return true;
+  //   }
+
+  //   if (!requesterId) {
+  //     return true; /*Statically true, later it will be implemented*/
+  //   }
+
+  //   if (photo.profile.userId === requesterId) {
+  //     return true;
+  //   }
+
+  //   if (photo.privacyLevel === 'private') {
+  //     return false;
+  //   }
+
+  //   return false;
+  // }
   private async checkPhotoViewPermission(photo: any, requesterId?: string): Promise<boolean> {
-    if (photo.moderationStatus !== 'approved' && photo.profile.userId !== requesterId) {
-      return false;
-    }
-
-    if (photo.privacyLevel === 'public') {
-      return true;
-    }
-
+    // If there is no requester, keep your current placeholder behaviour
     if (!requesterId) {
       return true; /*Statically true, later it will be implemented*/
     }
 
-    if (photo.profile.userId === requesterId) {
+    const user = await prisma.user.findUnique({ where: { id: requesterId } });
+
+    if (!user) {
+      return false;
+    }
+
+    let isOwnerOrLinked = false;
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      isOwnerOrLinked = photo.profile.userId === requesterId;
+    } else if (user.role === 'parent') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: requesterId,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      isOwnerOrLinked = link?.profile.userId === photo.profile.userId;
+    }
+
+    // Moderation: only owner/linked can see unapproved photos
+    if (photo.moderationStatus !== 'approved' && !isOwnerOrLinked) {
+      return false;
+    }
+
+    // Public photos are always visible
+    if (photo.privacyLevel === 'public') {
       return true;
     }
 
+    // Owner or linked parent can see non-public photos
+    if (isOwnerOrLinked) {
+      return true;
+    }
+
+    // Explicitly private: only owner/linked
     if (photo.privacyLevel === 'private') {
       return false;
     }

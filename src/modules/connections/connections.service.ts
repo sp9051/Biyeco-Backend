@@ -2,6 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import { SendInterestDTO, AcceptInterestDTO, DeclineInterestDTO, WithdrawInterestDTO } from './connections.dto.js';
 import { interestRateLimitService } from './interestRateLimit.service.js';
 import { logger } from '../../utils/logger.js';
+import { eventBus } from '../../events/eventBus.js';
+
 
 const prisma = new PrismaClient();
 
@@ -24,6 +26,7 @@ export class ConnectionsService {
     const toProfile = await prisma.profile.findFirst({
       where: { userId: toUserId },
     });
+    console.log(toProfile)
 
     if (!toProfile || !toProfile.published) {
       throw new Error('Target profile not found or not published');
@@ -98,6 +101,18 @@ export class ConnectionsService {
       fromUserId,
       toUserId,
       interestId: interest.id,
+    });
+    let user = await prisma.user.findUnique({ where: { id: fromUserId } });
+
+    // Emit notification
+    eventBus.emitNotification({
+      userId: toUserId,
+      type: "interest_received",
+      metadata: {
+        fromName: user?.firstName,
+        fromUserId: fromUserId
+      },
+      priority: "HIGH"
     });
 
     return {

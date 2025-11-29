@@ -1,9 +1,14 @@
 import { ProfileData, MaskedProfile, RequesterContext, PhotoData } from './profile.types.js';
 import { logger } from '../../utils/logger.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
 
 export class ProfilePermissions {
-  maskProfile(profile: ProfileData, requester: RequesterContext): MaskedProfile {
-    const isOwner = requester.userId === profile.userId;
+  async maskProfile(profile: ProfileData, requester: RequesterContext): Promise<MaskedProfile> {
+    const canActOnProfile = await this.canActOnProfile(profile, requester);
+    const isOwner = canActOnProfile; // owner or linked (self/candidate/parent/guardian)
     const isGuardian = requester.isGuardian || false;
     const isPremium = requester.isPremium || false;
 
@@ -15,6 +20,7 @@ export class ProfilePermissions {
       completeness: profile.completeness,
     };
 
+    // Full visibility for the "owner" (self/candidate) or linked parent/guardian
     if (isOwner) {
       return {
         ...maskedProfile,
@@ -28,6 +34,7 @@ export class ProfilePermissions {
       };
     }
 
+    // Non-owners can't see unpublished profiles
     if (!profile.published) {
       logger.warn('Attempted to view unpublished profile', {
         profileId: profile.id,
@@ -36,6 +43,7 @@ export class ProfilePermissions {
       throw new Error('Profile is not published');
     }
 
+    // Guardian or premium: see more details, but still masked location
     if (isGuardian || isPremium) {
       maskedProfile.headline = profile.headline;
       maskedProfile.about = profile.about;
@@ -45,6 +53,7 @@ export class ProfilePermissions {
       maskedProfile.photos = this.filterPhotos(profile.photos || [], 'all');
       maskedProfile.preferences = profile.preferences;
     } else {
+      // Regular viewer: limited about + only public photos
       maskedProfile.headline = profile.headline;
       maskedProfile.about = this.maskAbout(profile.about);
       maskedProfile.gender = profile.gender;
@@ -56,13 +65,13 @@ export class ProfilePermissions {
     return maskedProfile;
   }
 
-  canViewProfile(profile: ProfileData, requester: RequesterContext): boolean {
-    const isOwner = requester.userId === profile.userId;
-
-    if (isOwner) {
+  async canViewProfile(profile: ProfileData, requester: RequesterContext): Promise<boolean> {
+    // Owner / linked parent / linked guardian can always view
+    if (await this.canActOnProfile(profile, requester)) {
       return true;
     }
 
+    // Others can only view if published
     if (!profile.published) {
       return false;
     }
@@ -70,12 +79,14 @@ export class ProfilePermissions {
     return true;
   }
 
-  canEditProfile(profile: ProfileData, requester: RequesterContext): boolean {
-    return requester.userId === profile.userId;
+  async canEditProfile(profile: ProfileData, requester: RequesterContext): Promise<boolean> {
+    // Same role logic as in service: self/candidate owner, or linked parent/guardian via CandidateLink
+    return this.canActOnProfile(profile, requester);
   }
 
-  canPublishProfile(profile: ProfileData, requester: RequesterContext): boolean {
-    return requester.userId === profile.userId;
+  async canPublishProfile(profile: ProfileData, requester: RequesterContext): Promise<boolean> {
+    // Same rule as edit: only owner / linked parent/guardian
+    return this.canActOnProfile(profile, requester);
   }
 
   private calculateAge(dob: Date): number {
@@ -119,6 +130,44 @@ export class ProfilePermissions {
     }
 
     return photos.filter((photo) => photo.privacyLevel === 'public');
+  }
+
+  /**
+   * Centralised role-based rule:
+   * - self / candidate  → requester.userId === profile.userId
+   * - parent / guardian → requester.linkedProfileUserId === profile.userId
+   */
+  private async canActOnProfile(profile: ProfileData, requester: RequesterContext): Promise<boolean> {
+    const user = await prisma.user.findUnique({ where: { id: requester.userId } });
+
+    if (!user) {
+      // For parent/guardian: you might eventually want to return a different shape
+      // (e.g. list of profiles), but for now we enforce "must have at least one profile"
+      throw new Error('user not found');
+    }
+
+
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      return requester.userId === profile.userId;
+    }
+
+    if (user.role === 'parent') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: requester.userId,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      const linkedProfileUserId = link?.profile.userId;
+      return linkedProfileUserId === profile.userId;
+    }
+
+    return false;
   }
 }
 

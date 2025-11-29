@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { deviceTokenService } from './deviceToken.service.js';
-import { sendResponse, sendError } from '../../utils/response.js';
+import { sendError, sendSuccess } from '../../utils/response.js';
 import { logger } from '../../utils/logger.js';
 import { z } from 'zod';
 
@@ -26,25 +26,33 @@ class DeviceTokenController {
       // Validate request body
       const validation = SaveDeviceTokenSchema.safeParse(req.body);
       if (!validation.success) {
+        const errors = validation.error.flatten().fieldErrors;
+
         sendError(
           res,
           'Invalid request body',
           400,
-          validation.error.flatten().fieldErrors
+          JSON.stringify({ errors }),
         );
         return;
+
       }
 
       const { token } = validation.data as SaveDeviceTokenRequest;
 
       // Save device token
       const deviceToken = await deviceTokenService.saveDeviceToken(userId, token);
-
-      sendResponse(res, 200, 'Device token saved successfully', {
+      sendSuccess(res, {
         id: deviceToken.id,
         userId: deviceToken.userId,
         token: deviceToken.token,
-      });
+      }, 'Device token saved successfully', 200);
+
+      // sendSuccess(res, 200, 'Device token saved successfully', {
+      //   id: deviceToken.id,
+      //   userId: deviceToken.userId,
+      //   token: deviceToken.token,
+      // });
     } catch (error) {
       logger.error('Failed to save device token', {
         userId: (req as any).userId,
@@ -78,9 +86,10 @@ class DeviceTokenController {
         return;
       }
 
-      sendResponse(res, 200, 'Device token deleted successfully', {
-        message: 'Device token deleted',
-      });
+      // sendResponse(res, 200, 'Device token deleted successfully', {
+      //   message: 'Device token deleted',
+      // });
+      sendSuccess(res, 'Device token deleted successfully', 'Device token deleted', 200);
     } catch (error) {
       logger.error('Failed to delete device token', {
         userId: (req as any).userId,

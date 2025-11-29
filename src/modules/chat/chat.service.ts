@@ -9,6 +9,7 @@ import {
   ThreadWithPreview,
   ChatServer,
 } from './chat.types.js';
+import { eventBus } from '../../events/eventBus.js';
 
 const prisma = new PrismaClient();
 
@@ -91,6 +92,18 @@ export class ChatService {
         logger.info(`Recipient ${toUserId} offline, enqueue notification`);
       }
     }
+
+    let user = await prisma.user.findUnique({ where: { id: fromUserId } });
+    // Emit notification
+    eventBus.emitNotification({
+      userId: toUserId,
+      type: "new_message",
+      metadata: {
+        fromName: user?.firstName,
+        threadId: threadId
+      },
+      priority: "HIGH"
+    });
 
     return messageResponse;
   }
@@ -182,11 +195,11 @@ export class ChatService {
       lastMsgAt: thread.lastMsgAt,
       lastMessage: thread.messages[0]
         ? {
-            id: thread.messages[0].id,
-            content: thread.messages[0].content,
-            fromUserId: thread.messages[0].fromUserId,
-            createdAt: thread.messages[0].createdAt,
-          }
+          id: thread.messages[0].id,
+          content: thread.messages[0].content,
+          fromUserId: thread.messages[0].fromUserId,
+          createdAt: thread.messages[0].createdAt,
+        }
         : undefined,
       createdAt: thread.createdAt,
       updatedAt: thread.updatedAt,

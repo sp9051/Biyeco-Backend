@@ -930,20 +930,31 @@ export class AuthService {
       throw new Error('Profile not found.');
     }
 
-    const inviterLink = await prisma.candidateLink.findFirst({
-      where: {
-        profileId,
-        OR: [
-          { parentUserId: inviterId },
-          { childUserId: inviterId },
-        ],
-        role: { in: ['parent', 'candidate'] },
-        status: 'active',
-      },
+    const user = await prisma.user.findUnique({
+      where: { id: inviterId },
     });
 
-    if (!inviterLink) {
-      throw new Error('You do not have permission to invite users to this profile.');
+    let inviterLinkParentUserId;
+
+    if (user?.role !== 'self') {
+
+
+      const inviterLink = await prisma.candidateLink.findFirst({
+        where: {
+          profileId,
+          OR: [
+            { parentUserId: inviterId },
+            { childUserId: inviterId },
+          ],
+          role: { in: ['parent', 'candidate'] },
+          status: 'active',
+        },
+      });
+      inviterLinkParentUserId = inviterLink?.parentUserId;
+
+      if (!inviterLink) {
+        throw new Error('You do not have permission to invite users to this profile.');
+      }
     }
 
     let childUser = await prisma.user.findUnique({ where: { email } });
@@ -975,7 +986,7 @@ export class AuthService {
     await prisma.candidateLink.create({
       data: {
         profileId,
-        parentUserId: inviterLink.parentUserId,
+        parentUserId: user?.role == 'self' ? inviterId : inviterLinkParentUserId!,
         childUserId: childUser.id,
         relationship,
         role: 'guardian',

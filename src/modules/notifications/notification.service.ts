@@ -1,4 +1,4 @@
-import { PrismaClient, Notification } from '@prisma/client';
+import { PrismaClient, Notification, Prisma } from '@prisma/client';
 import { logger } from '../../utils/logger.js';
 import {
   NotificationPayload,
@@ -19,7 +19,9 @@ class NotificationService {
         type: payload.type,
         title: payload.title,
         body: payload.body,
-        metadata: payload.metadata || null,
+        // metadata: payload.metadata || null,
+        metadata: payload.metadata ?? Prisma.JsonNull,
+
         deliveredAt: new Date(),
       },
     });

@@ -11,6 +11,60 @@ import { logger } from '../../utils/logger.js';
 const prisma = new PrismaClient();
 
 export class ProfileService {
+  private async assertUserCanActOnProfile(
+    profile: any,
+    userId: string,
+    action: 'update' | 'publish' | 'unpublish' | 'delete'
+  ): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      // For parent/guardian: you might eventually want to return a different shape
+      // (e.g. list of profiles), but for now we enforce "must have at least one profile"
+      throw new Error('user not found');
+    }
+
+    // 🔍 Resolve the profile differently based on role
+    // let profile: Profile | null = null;
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      // Self / candidate own their profile directly
+      if (profile.userId !== userId) {
+        throw new Error(`You do not have permission to ${action} this profile`);
+      }
+    } else if (user.role === 'parent') {
+      // Parent: find a profile via CandidateLink where this user is parent
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: userId,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      if (profile.userId !== link?.profile.userId) {
+        throw new Error(`You do not have permission to ${action} this profile`);
+      }
+    } else if (user.role === 'guardian') {
+      // Guardian: find profile via CandidateLink where this user is a childUser
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          childUserId: userId,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      if (profile.userId !== link?.profile.userId) {
+        throw new Error(`You do not have permission to ${action} this profile`);
+      }
+    }
+  }
+
   async createProfile(userId: string, dto: CreateProfileDTO): Promise<ProfileData> {
     const existingProfile = await prisma.profile.findUnique({
       where: { userId },
@@ -56,13 +110,64 @@ export class ProfileService {
   }
 
   async getMyProfile(userId: string): Promise<ProfileData | null> {
-    const profile = await prisma.profile.findUnique({
-      where: { userId },
-      include: {
-        photos: true,
-        preferences: true,
-      },
-    });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      // For parent/guardian: you might eventually want to return a different shape
+      // (e.g. list of profiles), but for now we enforce "must have at least one profile"
+      throw new Error('user not found');
+    }
+
+    let profile;
+    //    const profile = await prisma.profile.findUnique({
+    //   where: { userId },
+    //   include: {
+    //     photos: true,
+    //     preferences: true,
+    //   },
+    // });
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      // Self / candidate own their profile directly
+      profile = await prisma.profile.findUnique({
+        where: { userId: userId },
+      });
+    } else if (user.role === 'parent') {
+      // Parent: find a profile via CandidateLink where this user is parent
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: userId,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      profile = link?.profile ?? null;
+    } else if (user.role === 'guardian') {
+      // Guardian: find profile via CandidateLink where this user is a childUser
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          childUserId: userId,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      profile = link?.profile ?? null;
+    }
+
+    // if (!profile) {
+    //   // For parent/guardian: you might eventually want to return a different shape
+    //   // (e.g. list of profiles), but for now we enforce "must have at least one profile"
+    //   throw new Error('Profile not found for user');
+    // }
+
+
+
 
     if (!profile || profile.deletedAt) {
       return null;
@@ -110,9 +215,7 @@ export class ProfileService {
       throw new Error('Profile not found');
     }
 
-    if (profile.userId !== userId) {
-      throw new Error('You do not have permission to update this profile');
-    }
+    await this.assertUserCanActOnProfile(profile, userId, 'update');
 
     let updatedProfile: any;
 
@@ -392,9 +495,7 @@ export class ProfileService {
       throw new Error('Profile not found');
     }
 
-    if (profile.userId !== userId) {
-      throw new Error('You do not have permission to publish this profile');
-    }
+    await this.assertUserCanActOnProfile(profile, userId, 'publish');
 
     const { canPublish, missingFields } = completenessService.canPublish(profile as ProfileData);
 
@@ -427,9 +528,7 @@ export class ProfileService {
       throw new Error('Profile not found');
     }
 
-    if (profile.userId !== userId) {
-      throw new Error('You do not have permission to unpublish this profile');
-    }
+    await this.assertUserCanActOnProfile(profile, userId, 'unpublish');
 
     const updatedProfile = await prisma.profile.update({
       where: { id: profileId },
@@ -454,9 +553,7 @@ export class ProfileService {
       throw new Error('Profile not found');
     }
 
-    if (profile.userId !== userId) {
-      throw new Error('You do not have permission to delete this profile');
-    }
+    await this.assertUserCanActOnProfile(profile, userId, 'delete');
 
     await prisma.profile.update({
       where: { id: profileId },

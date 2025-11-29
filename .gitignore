@@ -6,6 +6,11 @@ pnpm-lock.yaml
 
 # Environment variables
 
+#Upload Media
+uploads/
+
+#Local State
+.local/
 
 # Build output
 dist/
