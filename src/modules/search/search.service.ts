@@ -24,7 +24,7 @@ export class SearchService {
     const cursor = dto.cursor ? decodeCursor(dto.cursor) : null;
 
     const useCache = this.shouldCacheQuery(dto);
-    
+
     if (useCache) {
       const cacheKey = this.buildCacheKey(userId, dto);
       const cached = await cacheService.get(cacheKey);
@@ -34,7 +34,7 @@ export class SearchService {
       }
     }
 
-    const whereClause = this.buildWhereClause(userId, dto, cursor);
+    const whereClause = await this.buildWhereClause(userId, dto, cursor);
 
     const profiles = await prisma.profile.findMany({
       where: whereClause,
@@ -51,11 +51,19 @@ export class SearchService {
       },
     });
 
-    const maskedProfiles = profiles.map((profile: any) =>
-      profilePermissions.maskProfile(profile as any, { userId })
+    // const maskedProfiles = await profiles.map((profile: any) =>
+    //   profilePermissions.maskProfile(profile as any, { userId })
+    // );
+    const maskedProfiles = await Promise.all(
+      profiles.map((profile: any) =>
+        profilePermissions.maskProfile(profile as any, { userId })
+      )
     );
+    console.log(maskedProfiles)
+
 
     const result = createPaginationResult(profiles, dto.limit);
+    console.log(result)
 
     if (useCache) {
       const cacheKey = this.buildCacheKey(userId, dto);
@@ -72,11 +80,12 @@ export class SearchService {
     return { ...result, data: maskedProfiles };
   }
 
-  private buildWhereClause(userId: string, dto: SearchRequestDTO, cursor: any): any {
+  private async buildWhereClause(userId: string, dto: SearchRequestDTO, cursor: any): Promise<any> {
+    const effectiveUserId = await this.resolveCandidateUserId(userId);
     const where: any = {
       published: true,
       deletedAt: null,
-      userId: { not: userId },
+      userId: { not: effectiveUserId },
     };
 
     if (cursor) {
@@ -169,6 +178,57 @@ export class SearchService {
     ];
     return parts.join(':');
   }
+
+  private async resolveCandidateUserId(userId: string): Promise<string> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error('user not found');
+    }
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      return userId;
+    }
+
+    if (user.role === 'parent') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: userId,
+          status: 'active',
+        },
+        include: { profile: true },
+      });
+
+      const linkedProfileUserId = link?.profile.userId;
+
+      if (!linkedProfileUserId) {
+        throw new Error('No active candidate profile linked to this parent');
+      }
+
+      return linkedProfileUserId;
+    }
+    if (user.role === 'guardian') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          childUserId: userId,
+          status: 'active',
+        },
+        include: { profile: true },
+      });
+
+      const linkedProfileUserId = link?.profile.userId;
+
+      if (!linkedProfileUserId) {
+        throw new Error('No active candidate profile linked to this parent');
+      }
+
+      return linkedProfileUserId;
+    }
+
+    // If you add guardian or other roles later, extend this logic here.
+    return userId;
+  }
+
 }
 
 export const searchService = new SearchService();

@@ -7,9 +7,9 @@ import { logger } from '../../utils/logger.js';
 export class DiscoveryService {
   async getRecommended(userId: string, cursorStr: string | undefined, limit: number) {
     const cursor = cursorStr ? decodeCursor(cursorStr) : null;
-    
+
     const cacheKey = cacheService.buildKey('discovery', 'recommended', 'user', userId, 'cursor', cursorStr || 'first');
-    
+
     const cached = await cacheService.get(cacheKey);
     if (cached) {
       logger.info('Returning cached recommended profiles', { userId, cacheKey });
@@ -18,8 +18,14 @@ export class DiscoveryService {
 
     const profiles = await recommendationService.getRecommendations(userId, cursor, limit);
 
-    const maskedProfiles = profiles.map((profile: any) =>
-      profilePermissions.maskProfile(profile as any, { userId })
+    // const maskedProfiles = profiles.map((profile: any) =>
+    //   profilePermissions.maskProfile(profile as any, { userId })
+    // );
+
+    const maskedProfiles = await Promise.all(
+      profiles.map((profile: any) =>
+        profilePermissions.maskProfile(profile as any, { userId })
+      )
     );
 
     const result = createPaginationResult(profiles, limit);
@@ -42,8 +48,13 @@ export class DiscoveryService {
 
     const profiles = await recommendationService.getNewProfiles(userId, cursor, limit);
 
-    const maskedProfiles = profiles.map((profile: any) =>
-      profilePermissions.maskProfile(profile as any, { userId })
+    // const maskedProfiles = profiles.map((profile: any) =>
+    //   profilePermissions.maskProfile(profile as any, { userId })
+    // );
+    const maskedProfiles = await Promise.all(
+      profiles.map((profile: any) =>
+        profilePermissions.maskProfile(profile as any, { userId })
+      )
     );
 
     const result = createPaginationResult(profiles, limit);
@@ -66,8 +77,13 @@ export class DiscoveryService {
 
     const profiles = await recommendationService.getNearbyProfiles(userId, cursor, limit);
 
-    const maskedProfiles = profiles.map((profile: any) =>
-      profilePermissions.maskProfile(profile as any, { userId })
+    // const maskedProfiles = profiles.map((profile: any) =>
+    //   profilePermissions.maskProfile(profile as any, { userId })
+    // );
+    const maskedProfiles = await Promise.all(
+      profiles.map((profile: any) =>
+        profilePermissions.maskProfile(profile as any, { userId })
+      )
     );
 
     const result = createPaginationResult(profiles, limit);

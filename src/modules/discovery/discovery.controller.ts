@@ -18,6 +18,8 @@ export class DiscoveryController {
       });
 
       const result = await discoveryService.getRecommended(userId, cursor, limit);
+      console.log(result)
+
 
       return sendSuccess(res, result, 'Recommended profiles retrieved', 200);
     } catch (error) {

@@ -113,6 +113,7 @@ export class RankingService {
     return scored.map((item) => item.profile);
   }
 
+
   private calculateAge(dob: Date): number {
     const today = new Date();
     const birthDate = new Date(dob);

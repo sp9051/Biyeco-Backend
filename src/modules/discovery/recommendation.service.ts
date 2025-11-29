@@ -10,15 +10,22 @@ export class RecommendationService {
     cursor: { id: string; createdAt: Date } | null,
     limit: number
   ) {
+    const effectiveUserId = await this.resolveCandidateUserId(userId);
+
+    console.log(userId);
+    console.log(effectiveUserId);
+
     const userProfile = await prisma.profile.findFirst({
-      where: { userId },
+      where: { userId: effectiveUserId },
       include: { preferences: true },
     });
+    console.log(userProfile);
+
 
     const baseQuery: any = {
       published: true,
       deletedAt: null,
-      userId: { not: userId },
+      userId: { not: effectiveUserId },
     };
 
     if (cursor) {
@@ -46,14 +53,20 @@ export class RecommendationService {
         },
       },
     });
+    console.log(profiles)
 
     const rankedProfiles = rankingService.rankProfiles(
       profiles,
       userProfile?.preferences
     );
+    console.log(rankedProfiles)
+    console.log("profiles hello")
+
+
 
     logger.info('Recommendations generated', {
       userId,
+      effectiveUserId,
       count: rankedProfiles.length,
       hasCursor: !!cursor,
     });
@@ -66,13 +79,15 @@ export class RecommendationService {
     cursor: { id: string; createdAt: Date } | null,
     limit: number
   ) {
+    const effectiveUserId = await this.resolveCandidateUserId(userId);
+
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
     const baseQuery: any = {
       published: true,
       deletedAt: null,
-      userId: { not: userId },
+      userId: { not: effectiveUserId },
       createdAt: { gte: startOfToday },
     };
 
@@ -104,6 +119,7 @@ export class RecommendationService {
 
     logger.info('New profiles fetched', {
       userId,
+      effectiveUserId,
       count: profiles.length,
       date: startOfToday.toISOString(),
     });
@@ -116,12 +132,14 @@ export class RecommendationService {
     cursor: { id: string; createdAt: Date } | null,
     limit: number
   ) {
+    const effectiveUserId = await this.resolveCandidateUserId(userId);
+
     const userProfile = await prisma.profile.findFirst({
-      where: { userId },
+      where: { userId: effectiveUserId },
     });
 
     if (!userProfile || !userProfile.location) {
-      logger.warn('User profile or location not found for nearby search', { userId });
+      logger.warn('User profile or location not found for nearby search', { userId, effectiveUserId });
       return [];
     }
 
@@ -134,7 +152,7 @@ export class RecommendationService {
     const baseQuery: any = {
       published: true,
       deletedAt: null,
-      userId: { not: userId },
+      userId: { not: effectiveUserId },
     };
 
     if (cursor) {
@@ -170,11 +188,67 @@ export class RecommendationService {
 
     logger.info('Nearby profiles fetched (stub - city match only)', {
       userId,
+      effectiveUserId,
       userCity,
       count: nearbyProfiles.length,
     });
 
     return nearbyProfiles;
+  }
+
+  /**
+   * Use the same role logic as elsewhere:
+   * - self/candidate → use own userId
+   * - parent        → use linked candidate's profile.userId via CandidateLink
+   */
+  private async resolveCandidateUserId(userId: string): Promise<string> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error('user not found');
+    }
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      return userId;
+    }
+
+    if (user.role === 'parent') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: userId,
+          status: 'active',
+        },
+        include: { profile: true },
+      });
+
+      const linkedProfileUserId = link?.profile.userId;
+
+      if (!linkedProfileUserId) {
+        throw new Error('No active candidate profile linked to this parent');
+      }
+
+      return linkedProfileUserId;
+    }
+    if (user.role === 'guardian') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          childUserId: userId,
+          status: 'active',
+        },
+        include: { profile: true },
+      });
+
+      const linkedProfileUserId = link?.profile.userId;
+
+      if (!linkedProfileUserId) {
+        throw new Error('No active candidate profile linked to this parent');
+      }
+
+      return linkedProfileUserId;
+    }
+
+    // If you add guardian or other roles later, extend this logic here.
+    return userId;
   }
 }
 

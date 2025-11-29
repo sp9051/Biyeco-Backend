@@ -5,6 +5,7 @@ import { mediaController } from './media.controller.js';
 import { validate } from '../../middleware/validate.js';
 import { CreateUploadUrlSchema } from './upload.dto.js';
 import { authenticateToken, optionalAuthMiddleware } from '../../middleware/authMiddleware.js';
+import { UpdatePhotoPrivacySchema } from './upload.dto.js';
 
 const router = Router();
 const upload = multer(); // memory storage
@@ -35,5 +36,15 @@ router.post(
 router.get('/:photoId', optionalAuthMiddleware, mediaController.getPhotoById.bind(mediaController));
 
 router.delete('/:photoId', authenticateToken, mediaController.deletePhoto.bind(mediaController));
+
+
+
+router.patch(
+  '/privacy/:profileId',
+  authenticateToken,
+  validate(UpdatePhotoPrivacySchema),
+  mediaController.updatePrivacyForProfile.bind(mediaController)
+);
+
 
 export default router;

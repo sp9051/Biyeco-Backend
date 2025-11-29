@@ -26,9 +26,10 @@ export class MediaController {
   async uploadFile(req: Request, res: Response, next: NextFunction) {
     try {
       const { photoId } = req.body;
+      const userId = req.userId!;
       if (!req.file) throw new Error('No file uploaded');
 
-      const result = await mediaService.uploadFile(photoId, req.file.buffer);
+      const result = await mediaService.uploadFile(photoId, userId, req.file.buffer);
       return sendSuccess(res, result, 'File uploaded', 200);
     } catch (error) {
       return next(error);
@@ -70,6 +71,30 @@ export class MediaController {
       return next(error);
     }
   }
+
+  async updatePrivacyForProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { profileId } = req.params;
+      const { privacyLevel } = req.body;
+      const userId = req.userId!;
+
+      const result = await mediaService.updatePhotoPrivacyForProfile(
+        profileId,
+        userId,
+        privacyLevel
+      );
+
+      return sendSuccess(
+        res,
+        result,
+        `Privacy updated for ${result.updatedCount} photo(s)`,
+        200
+      );
+    } catch (error) {
+      return next(error);
+    }
+  }
+
 
   async listProfilePhotos(req: Request, res: Response, next: NextFunction) {
     try {

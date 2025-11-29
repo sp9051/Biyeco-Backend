@@ -47,11 +47,18 @@ export class ProfileController {
         isPremium: false,
       };
 
+      console.log(id);
+      console.log(userId);
+
       const profile = await profileService.getProfileById(id, requester);
+      console.log(profile);
 
-      const maskedProfile = profilePermissions.maskProfile(profile, requester);
 
-      return sendSuccess(res, maskedProfile, 'Profile retrieved successfully', 200);
+      // const maskedProfile = await profilePermissions.maskProfile(profile, requester);
+      // console.log(maskedProfile);
+
+
+      return sendSuccess(res, profile, 'Profile retrieved successfully', 200);
     } catch (error) {
       return next(error);
     }

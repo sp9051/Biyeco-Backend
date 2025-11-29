@@ -1,9 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
+import { PrismaClient } from '@prisma/client';
 import { connectionsService } from './connections.service.js';
-import { SendInterestDTO, AcceptInterestDTO, DeclineInterestDTO, WithdrawInterestDTO } from './connections.dto.js';
+import {
+  SendInterestDTO,
+  AcceptInterestDTO,
+  DeclineInterestDTO,
+  WithdrawInterestDTO,
+} from './connections.dto.js';
 import { idempotencyService } from './idempotency.service.js';
 import { sendSuccess } from '../../utils/response.js';
 import { logger } from '../../utils/logger.js';
+
+const prisma = new PrismaClient();
 
 export class ConnectionsController {
   async sendInterest(req: Request, res: Response, next: NextFunction) {
@@ -12,8 +20,11 @@ export class ConnectionsController {
       const dto: SendInterestDTO = req.body;
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined;
 
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
+
       logger.info('Send interest request', {
         userId,
+        effectiveUserId,
         toUserId: dto.toUserId,
         idempotencyKey,
         requestId: req.requestId,
@@ -27,7 +38,7 @@ export class ConnectionsController {
         }
       }
 
-      const result = await connectionsService.sendInterest(userId, dto);
+      const result = await connectionsService.sendInterest(effectiveUserId, dto);
 
       const response = {
         success: true,
@@ -51,8 +62,11 @@ export class ConnectionsController {
       const dto: AcceptInterestDTO = req.body;
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined;
 
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
+
       logger.info('Accept interest request', {
         userId,
+        effectiveUserId,
         fromUserId: dto.fromUserId,
         idempotencyKey,
         requestId: req.requestId,
@@ -66,7 +80,7 @@ export class ConnectionsController {
         }
       }
 
-      const result = await connectionsService.acceptInterest(userId, dto);
+      const result = await connectionsService.acceptInterest(effectiveUserId, dto);
 
       const response = {
         success: true,
@@ -90,8 +104,11 @@ export class ConnectionsController {
       const dto: DeclineInterestDTO = req.body;
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined;
 
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
+
       logger.info('Decline interest request', {
         userId,
+        effectiveUserId,
         fromUserId: dto.fromUserId,
         idempotencyKey,
         requestId: req.requestId,
@@ -105,7 +122,7 @@ export class ConnectionsController {
         }
       }
 
-      const result = await connectionsService.declineInterest(userId, dto);
+      const result = await connectionsService.declineInterest(effectiveUserId, dto);
 
       const response = {
         success: true,
@@ -129,8 +146,11 @@ export class ConnectionsController {
       const dto: WithdrawInterestDTO = req.body;
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined;
 
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
+
       logger.info('Withdraw interest request', {
         userId,
+        effectiveUserId,
         toUserId: dto.toUserId,
         idempotencyKey,
         requestId: req.requestId,
@@ -144,7 +164,7 @@ export class ConnectionsController {
         }
       }
 
-      const result = await connectionsService.withdrawInterest(userId, dto);
+      const result = await connectionsService.withdrawInterest(effectiveUserId, dto);
 
       const response = {
         success: true,
@@ -165,10 +185,15 @@ export class ConnectionsController {
   async getSentInterests(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.userId!;
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
 
-      logger.info('Get sent interests request', { userId, requestId: req.requestId });
+      logger.info('Get sent interests request', {
+        userId,
+        effectiveUserId,
+        requestId: req.requestId,
+      });
 
-      const interests = await connectionsService.getSentInterests(userId);
+      const interests = await connectionsService.getSentInterests(effectiveUserId);
 
       return sendSuccess(res, interests, 'Sent interests retrieved', 200);
     } catch (error) {
@@ -179,10 +204,15 @@ export class ConnectionsController {
   async getReceivedInterests(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.userId!;
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
 
-      logger.info('Get received interests request', { userId, requestId: req.requestId });
+      logger.info('Get received interests request', {
+        userId,
+        effectiveUserId,
+        requestId: req.requestId,
+      });
 
-      const interests = await connectionsService.getReceivedInterests(userId);
+      const interests = await connectionsService.getReceivedInterests(effectiveUserId);
 
       return sendSuccess(res, interests, 'Received interests retrieved', 200);
     } catch (error) {
@@ -193,15 +223,77 @@ export class ConnectionsController {
   async getMatches(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.userId!;
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
 
-      logger.info('Get matches request', { userId, requestId: req.requestId });
+      logger.info('Get matches request', {
+        userId,
+        effectiveUserId,
+        requestId: req.requestId,
+      });
 
-      const matches = await connectionsService.getMatches(userId);
+      const matches = await connectionsService.getMatches(effectiveUserId);
 
       return sendSuccess(res, matches, 'Matches retrieved', 200);
     } catch (error) {
       return next(error);
     }
+  }
+
+  /**
+   * Same logic as in other parts of your code:
+   * - self/candidate → act as themselves
+   * - parent        → act as the linked candidate (via CandidateLink.profile.userId)
+   */
+  private async resolveCandidateUserId(userId: string): Promise<string> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error('user not found');
+    }
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      return userId;
+    }
+
+    if (user.role === 'parent') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: userId,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      const linkedProfileUserId = link?.profile.userId;
+
+      if (!linkedProfileUserId) {
+        throw new Error('No active candidate profile linked to this parent');
+      }
+
+      return linkedProfileUserId;
+    }
+    if (user.role === 'guardian') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          childUserId: userId,
+          status: 'active',
+        },
+        include: { profile: true },
+      });
+
+      const linkedProfileUserId = link?.profile.userId;
+
+      if (!linkedProfileUserId) {
+        throw new Error('No active candidate profile linked to this parent');
+      }
+
+      return linkedProfileUserId;
+    }
+
+    // Other roles (if any) just act as themselves for now
+    return userId;
   }
 }
 

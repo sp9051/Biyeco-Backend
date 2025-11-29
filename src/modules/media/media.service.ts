@@ -73,7 +73,7 @@ export class MediaService {
     };
   }
 
-  async uploadFile(photoId: string, buffer: Buffer): Promise<PhotoMetadata> {
+  async uploadFile(photoId: string, requesterId: string, buffer: Buffer): Promise<PhotoMetadata> {
     const photo = await prisma.photo.findUnique({ where: { id: photoId } });
     if (!photo) throw new Error('Photo not found');
     if (!photo.objectKey) throw new Error('Invalid photo objectKey');
@@ -82,7 +82,7 @@ export class MediaService {
 
     await prisma.photo.update({ where: { id: photoId }, data: { uploadedAt: new Date(), url } });
     console.log("photoId: " + photoId)
-    const result = await this.getPhotoById(photoId);
+    const result = await this.getPhotoById(photoId, requesterId);
     console.log("result: " + result)
 
     if (!result) throw new Error('Failed to retrieve uploaded photo');
@@ -115,6 +115,30 @@ export class MediaService {
     return this.sanitizePhotoMetadata(photo);
   }
 
+  // async deletePhoto(photoId: string, requesterId: string): Promise<void> {
+  //   const photo = await prisma.photo.findUnique({
+  //     where: { id: photoId },
+  //     include: { profile: true },
+  //   });
+
+  //   if (!photo) {
+  //     throw new Error('Photo not found');
+  //   }
+
+  //   await this.authorizeProfileOwner(photo.profileId, requesterId);
+
+  //   await prisma.photo.update({
+  //     where: { id: photoId },
+  //     data: { deletedAt: new Date() },
+  //   });
+
+  //   logger.info('Photo marked for deletion', { photoId, requesterId });
+
+  //   if (photo.objectKey) {
+  //     await this.enqueueDeletionJob(photo.objectKey);
+  //   }
+  // }
+
   async deletePhoto(photoId: string, requesterId: string): Promise<void> {
     const photo = await prisma.photo.findUnique({
       where: { id: photoId },
@@ -127,17 +151,53 @@ export class MediaService {
 
     await this.authorizeProfileOwner(photo.profileId, requesterId);
 
-    await prisma.photo.update({
-      where: { id: photoId },
-      data: { deletedAt: new Date() },
-    });
-
     logger.info('Photo marked for deletion', { photoId, requesterId });
 
     if (photo.objectKey) {
       await this.enqueueDeletionJob(photo.objectKey);
     }
+
+    await prisma.photo.delete({
+      where: { id: photoId },
+    });
   }
+
+  async updatePhotoPrivacyForProfile(
+    profileId: string,
+    requesterId: string,
+    newPrivacyLevel: 'public' | 'matches' | 'on_request' | 'private'
+  ): Promise<{ updatedCount: number }> {
+    // Validate requester is allowed to modify this profile
+    await this.authorizeProfileOwner(profileId, requesterId);
+
+    // Validate privacy level
+    const allowedLevels = ['public', 'matches', 'on_request', 'private'];
+    if (!allowedLevels.includes(newPrivacyLevel)) {
+      throw new Error(`Invalid privacy level: ${newPrivacyLevel}`);
+    }
+
+    // Update photos
+    const result = await prisma.photo.updateMany({
+      where: {
+        profileId,
+        deletedAt: null,
+      },
+      data: {
+        privacyLevel: newPrivacyLevel,
+      },
+    });
+
+    // Logging
+    logger.info('Updated photo privacy levels', {
+      profileId,
+      requesterId,
+      newPrivacyLevel,
+      updatedCount: result.count,
+    });
+
+    return { updatedCount: result.count };
+  }
+
 
   async listProfilePhotos(profileId: string, requesterId?: string): Promise<PhotoMetadata[]> {
     const photos = await prisma.photo.findMany({
@@ -296,7 +356,7 @@ export class MediaService {
   private async checkPhotoViewPermission(photo: any, requesterId?: string): Promise<boolean> {
     // If there is no requester, keep your current placeholder behaviour
     if (!requesterId) {
-      return true; /*Statically true, later it will be implemented*/
+      return false; /*Statically true, later it will be implemented*/
     }
 
     const user = await prisma.user.findUnique({ where: { id: requesterId } });
@@ -370,8 +430,35 @@ export class MediaService {
     logger.info('Enqueuing moderation job (stub)', { photoId, objectKey, profileId });
   }
 
+  // private async enqueueDeletionJob(objectKey: string): Promise<void> {
+  //   logger.info('Enqueuing deletion job (stub)', { objectKey });
+  // }
   private async enqueueDeletionJob(objectKey: string): Promise<void> {
-    logger.info('Enqueuing deletion job (stub)', { objectKey });
+    try {
+      if (env.UPLOAD_PROVIDER === 'local') {
+        // Delete from local filesystem
+        await localStorageService.deleteFile(objectKey);
+        logger.info('Local file deleted', { objectKey });
+        return;
+      }
+
+      // TODO: implement real deletion for other providers
+      if (env.UPLOAD_PROVIDER === 's3') {
+        logger.info('Enqueuing S3 deletion job (not implemented yet)', { objectKey });
+        // e.g. await s3Service.deleteObject({ bucket: env.AWS_S3_BUCKET || '', key: objectKey });
+        return;
+      }
+
+      // Cloudinary or other providers
+      logger.info('Enqueuing cloud provider deletion job (not implemented yet)', {
+        objectKey,
+        provider: env.UPLOAD_PROVIDER,
+      });
+      // e.g. await cloudinaryService.deleteResource(objectKey);
+    } catch (error) {
+      logger.error('Error deleting media object', { objectKey, error });
+      // Decide if you want to rethrow or just log
+    }
   }
 }
 

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
 import { logger } from '../../utils/logger.js';
 import { chatService } from './chat.service.js';
 import {
@@ -8,6 +9,8 @@ import {
   markAsReadSchema,
 } from './chat.dto.js';
 import { sendSuccess, sendError } from '../../utils/response.js';
+
+const prisma = new PrismaClient();
 
 export class ChatController {
   async getThreads(req: Request, res: Response): Promise<void> {
@@ -19,10 +22,17 @@ export class ChatController {
         return;
       }
 
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
       const query = getThreadsQuerySchema.parse(req.query);
 
-      const result = await chatService.getThreads(
+      logger.info('Get threads request', {
         userId,
+        effectiveUserId,
+        requestId: req.requestId,
+      });
+
+      const result = await chatService.getThreads(
+        effectiveUserId,
         query.cursor,
         query.limit
       );
@@ -44,7 +54,16 @@ export class ChatController {
         return;
       }
 
-      const thread = await chatService.getThread(threadId, userId);
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
+
+      logger.info('Get thread request', {
+        userId,
+        effectiveUserId,
+        threadId,
+        requestId: req.requestId,
+      });
+
+      const thread = await chatService.getThread(threadId, effectiveUserId);
 
       sendSuccess(res, thread, 'Thread retrieved successfully');
     } catch (error: any) {
@@ -68,11 +87,19 @@ export class ChatController {
         return;
       }
 
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
       const input = createThreadSchema.parse(req.body);
 
-      if (!input.participantIds.includes(userId)) {
-        input.participantIds.push(userId);
+      if (!input.participantIds.includes(effectiveUserId)) {
+        input.participantIds.push(effectiveUserId);
       }
+
+      logger.info('Create thread request', {
+        userId,
+        effectiveUserId,
+        participantIds: input.participantIds,
+        requestId: req.requestId,
+      });
 
       const thread = await chatService.createThread({
         participants: input.participantIds,
@@ -101,11 +128,19 @@ export class ChatController {
         return;
       }
 
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
       const query = getMessagesQuerySchema.parse(req.query);
+
+      logger.info('Get messages request', {
+        userId,
+        effectiveUserId,
+        threadId,
+        requestId: req.requestId,
+      });
 
       const result = await chatService.getMessages(
         threadId,
-        userId,
+        effectiveUserId,
         query.cursor,
         query.limit
       );
@@ -133,9 +168,18 @@ export class ChatController {
         return;
       }
 
+      const effectiveUserId = await this.resolveCandidateUserId(userId);
       const input = markAsReadSchema.parse(req.body);
 
-      await chatService.markAsRead(threadId, userId, input.uptoMessageId);
+      logger.info('Mark as read request', {
+        userId,
+        effectiveUserId,
+        threadId,
+        uptoMessageId: input.uptoMessageId,
+        requestId: req.requestId,
+      });
+
+      await chatService.markAsRead(threadId, effectiveUserId, input.uptoMessageId);
 
       sendSuccess(res, { success: true }, 'Messages marked as read');
     } catch (error: any) {
@@ -148,6 +192,63 @@ export class ChatController {
         sendError(res, error.message || 'Failed to mark messages as read', 500);
       }
     }
+  }
+
+  /**
+   * Same role logic as elsewhere:
+   * - self/candidate → act as themselves
+   * - parent        → act as the linked candidate (via CandidateLink.profile.userId)
+   */
+  private async resolveCandidateUserId(userId: string): Promise<string> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error('user not found');
+    }
+
+    if (user.role === 'self' || user.role === 'candidate') {
+      return userId;
+    }
+
+    if (user.role === 'parent') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          parentUserId: userId,
+          status: 'active',
+        },
+        include: {
+          profile: true,
+        },
+      });
+
+      const linkedProfileUserId = link?.profile.userId;
+
+      if (!linkedProfileUserId) {
+        throw new Error('No active candidate profile linked to this parent');
+      }
+
+      return linkedProfileUserId;
+    }
+    if (user.role === 'guardian') {
+      const link = await prisma.candidateLink.findFirst({
+        where: {
+          childUserId: userId,
+          status: 'active',
+        },
+        include: { profile: true },
+      });
+
+      const linkedProfileUserId = link?.profile.userId;
+
+      if (!linkedProfileUserId) {
+        throw new Error('No active candidate profile linked to this parent');
+      }
+
+      return linkedProfileUserId;
+    }
+
+    // Other roles (guardian/etc) can be extended later
+    return userId;
   }
 }
 

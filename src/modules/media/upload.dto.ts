@@ -24,3 +24,8 @@ export const ModerationCallbackSchema = z.object({
 });
 
 export type ModerationCallbackDTO = z.infer<typeof ModerationCallbackSchema>;
+
+export const UpdatePhotoPrivacySchema = z.object({
+  privacyLevel: z.enum(['public', 'matches', 'on_request', 'private']),
+});
+export type UpdatePhotoPrivacyDTO = z.infer<typeof UpdatePhotoPrivacySchema>;
