@@ -7,6 +7,7 @@ import {
 import { completenessService } from './completeness.service.js';
 import { profilePermissions } from './profile.permissions.js';
 import { logger } from '../../utils/logger.js';
+import { generateRegisteredUserId } from '../../utils/profileId.generator.js';
 
 const prisma = new PrismaClient();
 
@@ -81,6 +82,7 @@ export class ProfileService {
     const profile = await prisma.profile.create({
       data: {
         userId,
+        registeredUserId: generateRegisteredUserId(),
         displayName: dto.displayName,
         headline: dto.headline,
         about: dto.about,

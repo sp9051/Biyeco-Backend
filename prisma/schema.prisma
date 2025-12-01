@@ -81,16 +81,17 @@ model Session {
 }
 
 model Profile {
-  id           String      @id @default(uuid())
-  userId       String      @unique
-  displayName  String?
-  headline     String?
-  about        String?
-  gender       String?
-  dob          DateTime?
-  location     Json?
-  published    Boolean     @default(false)
-  completeness Int         @default(0)
+  id               String      @id @default(uuid())
+  userId           String      @unique
+  registeredUserId String      @unique
+  displayName      String?
+  headline         String?
+  about            String?
+  gender           String?
+  dob              DateTime?
+  location         Json?
+  published        Boolean     @default(false)
+  completeness     Int         @default(0)
 
   // About Me
   description      String?

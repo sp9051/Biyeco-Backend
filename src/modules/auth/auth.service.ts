@@ -8,6 +8,7 @@ import { sessionService } from './session.service.js';
 import { AuthResponse, SessionInfo, UserResponse } from './auth.types.js';
 import { logger } from '../../utils/logger.js';
 import { redis } from '../../config/redis.js';
+import { generateRegisteredUserId } from '../../utils/profileId.generator.js';
 
 
 const prisma = new PrismaClient();
@@ -617,6 +618,7 @@ export class AuthService {
         profile = await tx.profile.create({
           data: {
             userId: selfUser.id,
+            registeredUserId: generateRegisteredUserId(),
             gender,
             dob: new Date(dob),
             location: {
@@ -764,6 +766,7 @@ export class AuthService {
         profile = await tx.profile.create({
           data: {
             userId: candidateUser.id,
+            registeredUserId: generateRegisteredUserId(),
             gender: candidateGender,
             dob: new Date(candidateDob),
             location: {
