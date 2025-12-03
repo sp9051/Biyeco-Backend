@@ -7,7 +7,7 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   user: UserResponse;
-  profile: string;
+  profile: any;
 }
 
 export interface UserResponse {

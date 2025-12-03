@@ -263,7 +263,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       user: this.sanitizeUser(user),
-      profile: profile.id,
+      profile: profile,
     };
   }
 
