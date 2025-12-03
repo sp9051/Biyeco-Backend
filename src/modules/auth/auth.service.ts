@@ -406,7 +406,7 @@ export class AuthService {
       accessToken,
       refreshToken: newRefreshToken,
       user: this.sanitizeUser(user),
-      profile: profile.id,
+      profile: profile,
     };
   }
 
