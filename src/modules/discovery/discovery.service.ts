@@ -21,14 +21,20 @@ export class DiscoveryService {
     // const maskedProfiles = profiles.map((profile: any) =>
     //   profilePermissions.maskProfile(profile as any, { userId })
     // );
+    console.log(profiles);
+
 
     const maskedProfiles = await Promise.all(
       profiles.map((profile: any) =>
         profilePermissions.maskProfile(profile as any, { userId })
       )
     );
+    console.log(maskedProfiles);
+
 
     const result = createPaginationResult(profiles, limit);
+    console.log(result);
+
 
     await cacheService.set(cacheKey, { ...result, data: maskedProfiles }, 120);
 

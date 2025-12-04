@@ -55,9 +55,9 @@ export class CompletenessService {
       score += WEIGHTS.photos;
     }
 
-    if (profile.preferences && this.isValidPreferences(profile.preferences)) {
-      score += WEIGHTS.preferences;
-    }
+    // if (profile.preferences && this.isValidPreferences(profile.preferences)) {
+    //   score += WEIGHTS.preferences;
+    // }
 
     logger.debug('Profile completeness calculated', {
       profileId: profile.id,
@@ -98,9 +98,9 @@ export class CompletenessService {
       incomplete.push('photos');
     }
 
-    if (!profile.preferences || !this.isValidPreferences(profile.preferences)) {
-      incomplete.push('preferences');
-    }
+    // if (!profile.preferences || !this.isValidPreferences(profile.preferences)) {
+    //   incomplete.push('preferences');
+    // }
 
     return incomplete;
   }
@@ -152,9 +152,9 @@ export class CompletenessService {
     );
   }
 
-  private isValidPreferences(preferences: any): boolean {
-    return preferences && typeof preferences === 'object' && Object.keys(preferences).length > 0;
-  }
+  // private isValidPreferences(preferences: any): boolean {
+  //   return preferences && typeof preferences === 'object' && Object.keys(preferences).length > 0;
+  // }
 }
 
 export const completenessService = new CompletenessService();

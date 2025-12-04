@@ -37,7 +37,11 @@ router.get('/:photoId', optionalAuthMiddleware, mediaController.getPhotoById.bin
 
 router.delete('/:photoId', authenticateToken, mediaController.deletePhoto.bind(mediaController));
 
-
+router.get(
+  '/profile/:profileId/photos',
+  authenticateToken,
+  mediaController.listProfilePhotos.bind(mediaController)
+);
 
 router.patch(
   '/privacy/:profileId',

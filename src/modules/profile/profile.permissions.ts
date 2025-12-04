@@ -6,35 +6,118 @@ const prisma = new PrismaClient();
 
 
 export class ProfilePermissions {
-  async maskProfile(profile: ProfileData, requester: RequesterContext): Promise<MaskedProfile> {
+  // async maskProfile(profile: ProfileData, requester: RequesterContext): Promise<MaskedProfile> {
+  //   const canActOnProfile = await this.canActOnProfile(profile, requester);
+  //   const isOwner = canActOnProfile; // owner or linked (self/candidate/parent/guardian)
+  //   const isGuardian = requester.isGuardian || false;
+  //   const isPremium = requester.isPremium || false;
+
+  //   const age = profile.dob ? this.calculateAge(profile.dob) : undefined;
+
+  //   const maskedProfile: MaskedProfile = {
+  //     id: profile.id,
+  //     displayName: profile.displayName || '',
+  //     // completeness: profile.completeness,
+  //   };
+
+  //   // Full visibility for the "owner" (self/candidate) or linked parent/guardian
+  //   if (isOwner) {
+  //     return {
+  //       ...maskedProfile,
+  //       headline: profile.headline,
+  //       about: profile.about,
+  //       gender: profile.gender,
+  //       age,
+  //       location: profile.location,
+  //       photos: profile.photos,
+  //       preferences: profile.preferences,
+  //     };
+  //   }
+
+  //   // Non-owners can't see unpublished profiles
+  //   if (!profile.published) {
+  //     logger.warn('Attempted to view unpublished profile', {
+  //       profileId: profile.id,
+  //       requesterId: requester.userId,
+  //     });
+  //     throw new Error('Profile is not published');
+  //   }
+
+  //   // Guardian or premium: see more details, but still masked location
+  //   if (isGuardian || isPremium) {
+  //     maskedProfile.headline = profile.headline;
+  //     maskedProfile.about = profile.about;
+  //     maskedProfile.gender = profile.gender;
+  //     maskedProfile.age = age;
+  //     maskedProfile.location = this.maskLocation(profile.location);
+  //     maskedProfile.photos = this.filterPhotos(profile.photos || [], 'all');
+  //     maskedProfile.preferences = profile.preferences;
+  //   } else {
+  //     // Regular viewer: limited about + only public photos
+  //     maskedProfile.headline = profile.headline;
+  //     maskedProfile.about = this.maskAbout(profile.about);
+  //     maskedProfile.gender = profile.gender;
+  //     maskedProfile.age = age;
+  //     maskedProfile.location = this.maskLocation(profile.location);
+  //     maskedProfile.photos = this.filterPhotos(profile.photos || [], 'public');
+  //   }
+
+  //   return maskedProfile;
+  // }
+
+  async maskProfile(
+    profile: ProfileData,
+    requester: RequesterContext | any
+  ): Promise<MaskedProfile> {
     const canActOnProfile = await this.canActOnProfile(profile, requester);
-    const isOwner = canActOnProfile; // owner or linked (self/candidate/parent/guardian)
+    const isOwner = canActOnProfile;
     const isGuardian = requester.isGuardian || false;
     const isPremium = requester.isPremium || false;
 
     const age = profile.dob ? this.calculateAge(profile.dob) : undefined;
 
+    // Base masked profile with mandatory fields
     const maskedProfile: MaskedProfile = {
       id: profile.id,
+      userId: profile.userId,
+      registeredUserId: profile.registeredUserId,
       displayName: profile.displayName || '',
-      completeness: profile.completeness,
     };
 
-    // Full visibility for the "owner" (self/candidate) or linked parent/guardian
+    //
+    // FULL ACCESS (owner / guardian linked)
+    //
     if (isOwner) {
       return {
         ...maskedProfile,
+
         headline: profile.headline,
         about: profile.about,
         gender: profile.gender,
         age,
         location: profile.location,
-        photos: profile.photos,
-        preferences: profile.preferences,
+
+        // Demographics
+        height: profile.height,
+        weight: profile.weight,
+        highestEducation: profile.highestEducation,
+        fieldOfStudy: profile.fieldOfStudy,
+        profession: profile.profession,
+        religion: profile.religion,
+        ancestralHome: profile.ancestralHome,
+        division: profile.division,
+
+        // Family
+        maritalStatus: profile.maritalStatus,
+
+        // Photos (all photos)
+        photos: profile.photos || [],
       };
     }
 
-    // Non-owners can't see unpublished profiles
+    //
+    // Non-owners cannot view unpublished profiles
+    //
     if (!profile.published) {
       logger.warn('Attempted to view unpublished profile', {
         profileId: profile.id,
@@ -43,27 +126,67 @@ export class ProfilePermissions {
       throw new Error('Profile is not published');
     }
 
-    // Guardian or premium: see more details, but still masked location
+    //
+    // GUARDIAN or PREMIUM: see more details (but location masked)
+    //
     if (isGuardian || isPremium) {
-      maskedProfile.headline = profile.headline;
-      maskedProfile.about = profile.about;
-      maskedProfile.gender = profile.gender;
-      maskedProfile.age = age;
-      maskedProfile.location = this.maskLocation(profile.location);
-      maskedProfile.photos = this.filterPhotos(profile.photos || [], 'all');
-      maskedProfile.preferences = profile.preferences;
-    } else {
-      // Regular viewer: limited about + only public photos
-      maskedProfile.headline = profile.headline;
-      maskedProfile.about = this.maskAbout(profile.about);
-      maskedProfile.gender = profile.gender;
-      maskedProfile.age = age;
-      maskedProfile.location = this.maskLocation(profile.location);
-      maskedProfile.photos = this.filterPhotos(profile.photos || [], 'public');
+      return {
+        ...maskedProfile,
+
+        headline: profile.headline,
+        about: profile.about,
+        gender: profile.gender,
+        age,
+        location: this.maskLocation(profile.location),
+
+        // Demographics
+        height: profile.height,
+        weight: profile.weight,
+        highestEducation: profile.highestEducation,
+        fieldOfStudy: profile.fieldOfStudy,
+        profession: profile.profession,
+        religion: profile.religion,
+        ancestralHome: profile.ancestralHome,
+        division: profile.division,
+
+        // Family
+        maritalStatus: profile.maritalStatus,
+
+        // Photos (all)
+        photos: this.filterPhotos(profile.photos || [], 'all'),
+      };
     }
 
-    return maskedProfile;
+    //
+    // REGULAR VIEWER: partial visibility
+    //
+    return {
+      ...maskedProfile,
+
+      headline: profile.headline,
+      about: this.maskAbout(profile.about),
+      gender: profile.gender,
+      age,
+      location: this.maskLocation(profile.location),
+
+      // Demographics
+      height: profile.height,
+      weight: profile.weight,
+      highestEducation: profile.highestEducation,
+      fieldOfStudy: profile.fieldOfStudy,
+      profession: profile.profession,
+      religion: profile.religion,
+      ancestralHome: profile.ancestralHome,
+      division: profile.division,
+
+      // Family
+      maritalStatus: profile.maritalStatus,
+
+      // Photos (public only)
+      photos: this.filterPhotos(profile.photos || [], 'public'),
+    };
   }
+
 
   async canViewProfile(profile: ProfileData, requester: RequesterContext): Promise<boolean> {
     // Owner / linked parent / linked guardian can always view
