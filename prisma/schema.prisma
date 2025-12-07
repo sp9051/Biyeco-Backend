@@ -98,8 +98,8 @@ model Profile {
   languagesKnown   String[]
 
   // Demographics
-  height           Int?
-  weight           Int?
+  height           Decimal?    @db.Decimal(5,2)
+  weight           Decimal?    @db.Decimal(5,2)
   highestEducation String?
   fieldOfStudy     String?
   profession       String?
@@ -127,8 +127,8 @@ model Profile {
   // Partner Preferences
   prefAgeRangeFrom       Int?
   prefAgeRangeTo         Int?
-  prefHeightFrom         Int?
-  prefHeightTo           Int?
+  prefHeightFrom         Decimal?  @db.Decimal(5,2)
+  prefHeightTo           Decimal?  @db.Decimal(5,2)
   prefLocation           Json?
   prefEducation          String?
   prefProfession         String?
