@@ -19,8 +19,14 @@ export const SearchBasicSchema = z.object({
     .tuple([z.number().int().min(18), z.number().int().max(100)])
     .optional(),
 
+  // heightRange: z
+  //   .tuple([z.number().int().min(100), z.number().int().max(250)])
+  //   .optional(),
   heightRange: z
-    .tuple([z.number().int().min(100), z.number().int().max(250)])
+    .tuple([
+      z.number().int().min(1).max(250).optional(), // min height (optional)
+      z.number().int().min(1).max(250).optional(), // max height (optional)
+    ])
     .optional(),
 
   maritalStatus: z.array(z.string()).optional(),
