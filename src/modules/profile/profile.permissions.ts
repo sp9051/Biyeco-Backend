@@ -261,6 +261,7 @@ export class ProfilePermissions {
    * - parent / guardian → requester.linkedProfileUserId === profile.userId
    */
   private async canActOnProfile(profile: ProfileData, requester: RequesterContext): Promise<boolean> {
+    // console.log("requesterUserID: " + requester)
     const user = await prisma.user.findUnique({ where: { id: requester.userId } });
 
     if (!user) {

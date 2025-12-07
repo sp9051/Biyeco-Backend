@@ -1,7 +1,7 @@
 import { PrismaClient, Profile } from '@prisma/client';
 // import { rankingService } from './ranking.service.js';
 import { logger } from '../../utils/logger.js';
-import { profile } from 'console';
+// import { profile } from 'console';
 
 const prisma = new PrismaClient();
 

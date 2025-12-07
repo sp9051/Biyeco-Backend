@@ -185,7 +185,9 @@ export class ConnectionsController {
   async getSentInterests(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.userId!;
-      const effectiveUserId = await this.resolveCandidateUserId(userId);
+      let effectiveUserId = { userId: await this.resolveCandidateUserId(userId) };
+      // effectiveUserId={userId:effectiveUserId};
+
 
       logger.info('Get sent interests request', {
         userId,
@@ -204,7 +206,9 @@ export class ConnectionsController {
   async getReceivedInterests(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.userId!;
-      const effectiveUserId = await this.resolveCandidateUserId(userId);
+      // const effectiveUserId = await this.resolveCandidateUserId(userId);
+      let effectiveUserId = { userId: await this.resolveCandidateUserId(userId) };
+
 
       logger.info('Get received interests request', {
         userId,
@@ -223,7 +227,9 @@ export class ConnectionsController {
   async getMatches(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.userId!;
-      const effectiveUserId = await this.resolveCandidateUserId(userId);
+      // const effectiveUserId = await this.resolveCandidateUserId(userId);
+      let effectiveUserId = { userId: await this.resolveCandidateUserId(userId) };
+
 
       logger.info('Get matches request', {
         userId,

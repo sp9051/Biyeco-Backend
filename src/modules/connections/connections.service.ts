@@ -327,10 +327,10 @@ export class ConnectionsService {
   //   );
   // }
 
-  async getSentInterests(userId: string) {
+  async getSentInterests(requester: { userId: string }) {
     const interests = await prisma.interest.findMany({
       where: {
-        fromUserId: userId,
+        fromUserId: requester?.userId,
         status: { in: ['pending', 'accepted'] },
       },
       include: {
@@ -339,14 +339,22 @@ export class ConnectionsService {
             id: true,
             email: true,
             createdAt: true,
-            profile: true,
+            // profile: true,
+            profile: {
+              include: {
+                photos: true,   // ✅ FIX — include photos
+              }
+            }
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log(interests[0].toUser.profile)
+    // console.log(interests[0].toUser.profile)
+    // console.log(interests)
+    // console.log(userId)
+
 
     return Promise.all(
       interests.map(async (interest: any) => ({
@@ -355,7 +363,7 @@ export class ConnectionsService {
         toUser: interest.toUser,
         toUserProfile: interest.toUser?.profile
           ?
-          await profilePermissions.maskProfile(interest.toUser.profile, userId)
+          await profilePermissions.maskProfile(interest.toUser.profile, requester)
           : null,
         status: interest.status,
         createdAt: interest.createdAt,
@@ -490,10 +498,10 @@ export class ConnectionsService {
   //   };
   // }
 
-  async getReceivedInterests(userId: string) {
+  async getReceivedInterests(requester: { userId: string }) {
     const interests = await prisma.interest.findMany({
       where: {
-        toUserId: userId,
+        toUserId: requester.userId,
         status: { in: ['pending', 'accepted'] },
       },
       include: {
@@ -502,7 +510,11 @@ export class ConnectionsService {
             id: true,
             email: true,
             createdAt: true,
-            profile: true,
+            profile: {
+              include: {
+                photos: true,   // ✅ FIX — include photos
+              }
+            }
           },
         },
       },
@@ -515,7 +527,7 @@ export class ConnectionsService {
         fromUserId: interest.fromUserId,
         fromUser: interest.fromUser,
         fromUserProfile: interest.fromUser?.profile
-          ? await profilePermissions.maskProfile(interest.fromUser.profile, userId)
+          ? await profilePermissions.maskProfile(interest.fromUser.profile, requester)
           : null,
         status: interest.status,
         createdAt: interest.createdAt,
@@ -525,10 +537,93 @@ export class ConnectionsService {
   }
 
 
-  async getMatches(userId: string) {
+  // async getMatches(requester: { userId: string }) {
+  //   const sentAccepted = await prisma.interest.findMany({
+  //     where: {
+  //       fromUserId: requester.userId,
+  //       status: 'accepted',
+  //     },
+  //     include: {
+  //       toUser: {
+  //         select: {
+  //           id: true,
+  //           email: true,
+  //           createdAt: true,
+  //           profile: {
+  //             include: {
+  //               photos: true,   // ✅ FIX — include photos
+  //             }
+  //           }
+  //         },
+  //       },
+  //     },
+  //   });
+
+  //   console.log(sentAccepted)
+
+  //   const matches = [];
+
+  //   for (const sent of sentAccepted) {
+  //     const reverseMatch = await prisma.interest.findUnique({
+  //       where: {
+  //         fromUserId_toUserId: {
+  //           fromUserId: sent.toUserId,
+  //           toUserId: requester.userId,
+  //         },
+  //       },
+  //       include: {
+  //         fromUser: {
+  //           select: {
+  //             id: true,
+  //             email: true,
+  //             createdAt: true,
+  //             profile: {
+  //               include: {
+  //                 photos: true,   // ✅ FIX — include photos
+  //               }
+  //             }
+  //           },
+  //         },
+  //       },
+  //     });
+
+  //     if (reverseMatch?.status === 'accepted') {
+  //       const matchedUser = sent.toUser;
+
+  //       // ✅ Map Prisma profile to ProfileData
+  //       const profileData = matchedUser?.profile
+  //         ? this.mapProfile(matchedUser.profile)
+  //         : null;
+
+  //       // ✅ Mask the profile
+  //       const matchedProfile = profileData
+  //         ? await profilePermissions.maskProfile(profileData, requester)
+  //         : null;
+
+  //       matches.push({
+  //         matchedUserId: sent.toUserId,
+  //         matchedUser: matchedUser,
+  //         matchedUserProfile: matchedProfile,
+  //         matchedAt:
+  //           sent.updatedAt > reverseMatch.updatedAt
+  //             ? sent.updatedAt
+  //             : reverseMatch.updatedAt,
+  //       });
+  //     }
+  //   }
+
+  //   logger.info('Matches retrieved', {
+  //     requester,
+  //     matchCount: matches.length,
+  //   });
+
+  //   return matches;
+  // }
+  async getMatches(requester: { userId: string }) {
+    // 2️⃣ Find interests SENT by candidate and accepted
     const sentAccepted = await prisma.interest.findMany({
       where: {
-        fromUserId: userId,
+        fromUserId: requester.userId,
         status: 'accepted',
       },
       include: {
@@ -537,21 +632,33 @@ export class ConnectionsService {
             id: true,
             email: true,
             createdAt: true,
-            profile: true, // load profile
+            profile: {
+              include: {
+                photos: true,
+              },
+            },
           },
         },
       },
     });
 
     const matches = [];
+    console.log(sentAccepted)
 
     for (const sent of sentAccepted) {
-      const reverseMatch = await prisma.interest.findUnique({
+      // 4️⃣ Find reverse MATCH: the other user also accepted
+      const reverseMatch = await prisma.interest.findFirst({
         where: {
-          fromUserId_toUserId: {
-            fromUserId: sent.toUserId,
-            toUserId: userId,
-          },
+          OR: [
+            {
+              fromUserId: sent.toUserId,
+              toUserId: requester.userId,
+            },
+            {
+              fromUserId: requester.userId,
+              toUserId: sent.toUserId,
+            }
+          ]
         },
         include: {
           fromUser: {
@@ -559,28 +666,34 @@ export class ConnectionsService {
               id: true,
               email: true,
               createdAt: true,
-              profile: true,
+              profile: {
+                include: {
+                  photos: true,
+                },
+              },
             },
           },
         },
       });
+      console.log(reverseMatch)
 
+      // 5️⃣ Only count when BOTH sides accepted
       if (reverseMatch?.status === 'accepted') {
         const matchedUser = sent.toUser;
 
-        // ✅ Map Prisma profile to ProfileData
+        // Map Prisma profile → ProfileData
         const profileData = matchedUser?.profile
           ? this.mapProfile(matchedUser.profile)
           : null;
 
-        // ✅ Mask the profile
+        // Mask profile based on permissions
         const matchedProfile = profileData
-          ? await profilePermissions.maskProfile(profileData, userId)
+          ? await profilePermissions.maskProfile(profileData, requester)
           : null;
 
         matches.push({
           matchedUserId: sent.toUserId,
-          matchedUser: matchedUser,
+          matchedUser,
           matchedUserProfile: matchedProfile,
           matchedAt:
             sent.updatedAt > reverseMatch.updatedAt
@@ -591,12 +704,14 @@ export class ConnectionsService {
     }
 
     logger.info('Matches retrieved', {
-      userId,
+      userId: requester.userId,
+      resolvedCandidateId: requester.userId,
       matchCount: matches.length,
     });
 
     return matches;
   }
+
 
   private mapProfile(db: any): ProfileData {
     if (!db) return null as any;
@@ -651,6 +766,58 @@ export class ConnectionsService {
       deletedAt: db.deletedAt ?? undefined,
     };
   }
+
+  // private async resolveCandidateUserId(userId: string): Promise<string> {
+  //   const user = await prisma.user.findUnique({ where: { id: userId } });
+
+  //   if (!user) {
+  //     throw new Error('user not found');
+  //   }
+
+  //   if (user.role === 'self' || user.role === 'candidate') {
+  //     return userId;
+  //   }
+
+  //   if (user.role === 'parent') {
+  //     const link = await prisma.candidateLink.findFirst({
+  //       where: {
+  //         parentUserId: userId,
+  //         status: 'active',
+  //       },
+  //       include: {
+  //         profile: true,
+  //       },
+  //     });
+
+  //     const linkedProfileUserId = link?.profile.userId;
+
+  //     if (!linkedProfileUserId) {
+  //       throw new Error('No active candidate profile linked to this parent');
+  //     }
+
+  //     return linkedProfileUserId;
+  //   }
+  //   if (user.role === 'guardian') {
+  //     const link = await prisma.candidateLink.findFirst({
+  //       where: {
+  //         childUserId: userId,
+  //         status: 'active',
+  //       },
+  //       include: { profile: true },
+  //     });
+
+  //     const linkedProfileUserId = link?.profile.userId;
+
+  //     if (!linkedProfileUserId) {
+  //       throw new Error('No active candidate profile linked to this parent');
+  //     }
+
+  //     return linkedProfileUserId;
+  //   }
+
+  //   // Other roles (if any) just act as themselves for now
+  //   return userId;
+  // }
 
 
 
