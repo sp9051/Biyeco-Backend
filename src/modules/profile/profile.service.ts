@@ -464,7 +464,18 @@ export class ProfileService {
         throw new Error('Invalid step');
     }
 
-    const completeness = completenessService.calculateCompleteness(updatedProfile as ProfileData);
+    const profileScore = completenessService.calculateCompleteness(updatedProfile as ProfileData);
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      // For parent/guardian: you might eventually want to return a different shape
+      // (e.g. list of profiles), but for now we enforce "must have at least one profile"
+      throw new Error('user not found');
+    }
+    const verificationScore = user.isVerified ? 30 : 0;
+
+    const completeness = Math.min(profileScore + verificationScore, 100);
 
     const finalProfile = await prisma.profile.update({
       where: { id: profileId },
