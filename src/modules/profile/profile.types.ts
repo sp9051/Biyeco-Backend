@@ -17,6 +17,8 @@
 //   deletedAt?: Date;
 // }
 
+import { Decimal } from "@prisma/client/runtime/library";
+
 export interface ProfileData {
   id: string;
   userId: string;
@@ -38,8 +40,8 @@ export interface ProfileData {
   languagesKnown?: string[];
 
   // Demographics
-  height?: number;
-  weight?: number;
+  height?: Decimal | null;
+  weight?: Decimal | null;
   highestEducation?: string;
   fieldOfStudy?: string;
   profession?: string;
@@ -67,8 +69,8 @@ export interface ProfileData {
   // Partner Preferences
   prefAgeRangeFrom?: number;
   prefAgeRangeTo?: number;
-  prefHeightFrom?: number;
-  prefHeightTo?: number;
+  prefHeightFrom?: Decimal | null;
+  prefHeightTo?: Decimal | null;
   prefLocation?: any;
   prefEducation?: string;
   prefProfession?: string;
@@ -139,8 +141,8 @@ export interface MaskedProfile {
   location?: any;
 
   // Demographics
-  height?: number;
-  weight?: number;
+  height?: Decimal | null;
+  weight?: Decimal | null;
   highestEducation?: string;
   fieldOfStudy?: string;
   profession?: string;

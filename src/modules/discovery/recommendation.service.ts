@@ -1,9 +1,15 @@
 import { PrismaClient, Profile } from '@prisma/client';
 // import { rankingService } from './ranking.service.js';
 import { logger } from '../../utils/logger.js';
+
+
 // import { profile } from 'console';
 
 const prisma = new PrismaClient();
+// function decimalToNumber(value: Prisma.Decimal | null | undefined): number | undefined {
+//   return value ? value.toNumber() : undefined;
+// }
+// console.log(decimalToNumber)
 
 export class RecommendationService {
   // async getRecommendations(
@@ -373,7 +379,7 @@ export class RecommendationService {
 
     // Height
     if (user.height && other.height) {
-      const diff = Math.abs(user.height - other.height);
+      const diff = Math.abs(user.height.toNumber() - other.height.toNumber());
       score += (1 - Math.min(diff / 40, 1)) * 0.15;
     }
 
@@ -401,7 +407,7 @@ export class RecommendationService {
     // Example feature vector
     const features = [
       this.getAge(user.dob) - this.getAge(other.dob),
-      (user.height ?? 0) - (other.height ?? 0),
+      (user.height?.toNumber() ?? 0) - (other.height?.toNumber() ?? 0),
       user.religion === other.religion ? 1 : 0,
       user.profession === other.profession ? 1 : 0,
       user.highestEducation === other.highestEducation ? 1 : 0,
