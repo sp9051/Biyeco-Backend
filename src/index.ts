@@ -20,7 +20,6 @@ import path from 'path';
 
 export function createApp() {
   const app = express();
-  app.set('trust proxy', true);
 
   app.use(requestIdMiddleware);
 
