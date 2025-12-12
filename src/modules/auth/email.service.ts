@@ -3,7 +3,7 @@ import { logger } from '../../utils/logger.js';
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
-  port: Number(process.env.EMAIL_PORT) || 587,
+  port: Number(process.env.EMAIL_PORT) || 2525,
   secure: false,
   auth: {
     user: process.env.EMAIL_USER,
