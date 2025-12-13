@@ -2,7 +2,7 @@
 
 ## Overview
 
-A secure, production-ready backend API for a matrimonial platform built with Node.js, Express, and TypeScript. The system implements password + email OTP 2-step authentication with JWT access tokens and rotating refresh tokens stored in Redis. It includes a comprehensive profile management system with draft/publish workflow, step-by-step profile wizard, completeness tracking, and privacy controls.
+A secure, production-ready backend API for a matrimonial platform facilitating user and profile management. It includes advanced authentication, comprehensive profile management with a draft/publish workflow, completeness tracking, and privacy controls. The platform aims to provide a robust foundation for matrimonial services, including real-time chat, notifications, and a flexible subscription system for feature access.
 
 ## User Preferences
 
@@ -12,333 +12,64 @@ Preferred communication style: Simple, everyday language.
 
 ### Core Technology Stack
 
-**Runtime & Framework**
-- Node.js 18+ with Express.js framework
-- TypeScript with strict mode enabled for type safety
-- ES Modules (ESNext) for modern JavaScript features
-
-**Database & Caching**
-- PostgreSQL as the primary database via Prisma ORM
-- Redis for session management and refresh token storage
-- Prisma schema defines User and Session models with relationships
+The platform is built with Node.js 18+ using Express.js and TypeScript. It leverages PostgreSQL via Prisma ORM for persistent data storage and Redis for caching, session management, and refresh token storage. ES Modules are used for modern JavaScript features.
 
 ### Authentication Architecture
 
-**OTP-Based Email Authentication**
-- Email-only authentication (no phone OTP)
-- 6-digit numeric OTP with 5-minute expiry
-- OTP hashed with bcrypt before storage in database
-- Rate limiting: 3 OTP requests per 15 minutes per email, 5 per IP
-- Separate flows for registration and login with OTP verification
-
-**Token Management**
-- JWT access tokens with 15-minute expiry
-- Rotating refresh tokens stored in Redis with 7-day expiry
-- Access tokens contain userId, email, and sessionId claims
-- Refresh token rotation on every refresh request
-- Token reuse detection for security
-
-**Session Tracking**
-- Device ID, IP address, and User Agent tracking
-- Session revocation support (individual and bulk)
-- Last activity timestamp updates
-- Session validation on every authenticated request
+The system employs OTP-based email authentication for both registration and login, utilizing 6-digit numeric OTPs with a 5-minute expiry. OTPs are securely stored using bcrypt. Token management involves JWT access tokens (15-minute expiry) and rotating refresh tokens stored in Redis (7-day expiry), with refresh token rotation on every request and token reuse detection for enhanced security. Session tracking includes device ID, IP, user agent, and supports session revocation.
 
 ### Security Architecture
 
-**Request Security**
-- Helmet middleware for security headers (CSP, HSTS, X-Frame-Options)
-- CORS middleware with origin whitelist validation
-- Rate limiting: 100 requests per 15 minutes globally, stricter limits on auth endpoints
-- Request ID tracking (UUID) for distributed tracing
-- Cookie security: HttpOnly, Secure (production), SameSite=strict
-
-**Validation & Error Handling**
-- Zod schemas for all request validation (body, query, params)
-- Centralized error handler with request context logging
-- Standardized JSON response format (success/error structure)
-- Environment variable validation on startup
+Security is enforced with Helmet for HTTP headers, CORS with origin whitelist, and comprehensive rate limiting on all endpoints, especially authentication. Request IDs are used for tracing. All request data is validated using Zod schemas, and a centralized error handler provides consistent JSON error responses. Cookie security (HttpOnly, Secure, SameSite=strict) is also implemented.
 
 ### API Architecture
 
-**Route Organization**
-- `/api/health` - Health check endpoint
-- `/api/v1/auth/*` - Authentication endpoints (register, verify, login, refresh, logout, me)
-- `/api/v1/profiles/*` - Profile management endpoints (CRUD, step updates, publish/unpublish)
-- `/api/v1/chats/*` - Chat & messaging endpoints (threads, messages, read receipts)
-- Modular route structure with separate controller, service, and DTO layers
-
-**Response Format**
-```typescript
-Success: { success: true, data: T, message?: string }
-Error: { success: false, error: { message, code?, details? } }
-```
-
-**Middleware Pipeline**
-1. Request ID assignment
-2. Request logging with duration tracking
-3. Helmet security headers
-4. CORS validation
-5. Rate limiting
-6. Body parsing (JSON/URL-encoded, 10MB limit)
-7. Cookie parsing
-8. Route handlers
-9. 404 handler
-10. Centralized error handler
+API routes are organized modularly (e.g., `/api/v1/auth`, `/api/v1/profiles`, `/api/v1/chats`, `/api/v1/payments`, `/api/v1/notifications`). A standardized JSON response format is used for both success and error states. The middleware pipeline includes request ID assignment, logging, security headers, CORS, rate limiting, body parsing, and cookie parsing, leading to route handlers and a centralized error handling mechanism.
 
 ### Service Layer Architecture
 
-**Authentication Service** (`auth.service.ts`)
-- User registration with OTP generation
-- OTP verification with session creation
-- Login flow with existing user validation
-- Token refresh with rotation
-- Logout with session revocation
-- User profile retrieval
-
-**Token Service** (`token.service.ts`)
-- JWT access token generation and verification
-- Refresh token generation with Redis storage
-- Token rotation logic
-- Expiry parsing utilities
-
-**Session Service** (`session.service.ts`)
-- Session CRUD operations via Prisma
-- Session activity tracking
-- Bulk and individual session revocation
-- Active session retrieval
-
-**Email Service** (`email.service.ts`)
-- Real Nodemailer SMTP integration
-- OTP email delivery with HTML templates
-- Welcome email delivery
-- Development mode OTP logging
-
-**Profile Service** (`profile.service.ts`)
-- Profile creation (draft state)
-- Step-by-step profile updates (7 distinct steps)
-- Profile publishing with validation
-- Profile unpublishing
-- Profile retrieval with masking
-- Soft delete support
-
-**Completeness Service** (`completeness.service.ts`)
-- Dynamic completeness calculation (0-100%)
-- Weighted scoring for each profile section
-- Publish readiness validation
-- Missing fields detection
-
-**Profile Permissions** (`profile.permissions.ts`)
-- Field-level masking based on viewer permissions
-- Owner/Guardian/Premium/Visitor access levels
-- Photo privacy filtering
-- Location coordinate protection
-- About section truncation for non-premium users
-
-**Chat Service** (`chat.service.ts`)
-- Thread management with mutual match validation
-- Real-time message persistence
-- Cursor-based message pagination
-- Read receipt tracking
-- Profanity filtering with metadata
-- Participant authorization checks
+Key services include:
+- **Authentication Service:** Handles user registration, OTP verification, login, token refresh, and logout.
+- **Token Service:** Manages JWT and refresh token generation, verification, and rotation.
+- **Session Service:** Provides CRUD operations for user sessions and activity tracking.
+- **Email Service:** Integrates Nodemailer for OTP and welcome email delivery with HTML templates.
+- **Profile Service:** Manages profile creation, step-by-step updates, publishing, and retrieval with privacy masking.
+- **Completeness Service:** Calculates dynamic profile completeness and validates publish readiness.
+- **Profile Permissions:** Implements field-level masking based on user roles (Owner, Guardian, Premium, Visitor).
+- **Chat Service:** Manages chat threads, real-time message persistence, pagination, read receipts, and profanity filtering.
+- **Notification Service:** An event-driven system for in-app, email, and push notifications with user preferences.
+- **Payment & Entitlement Service:** Manages subscription plans, profile-based subscriptions, and checks feature entitlements, supporting multiple payment gateways.
 
 ### Logging & Monitoring
 
-**Winston Logger**
-- Structured JSON logging in production
-- Colorized console output in development
-- Log levels: error, warn, info, http, verbose, debug, silly
-- Request correlation via request ID
-- Service-level default metadata
-
-**Request Logging**
-- HTTP method, path, status code
-- Request duration in milliseconds
-- Request ID for tracing
+Winston is used for structured JSON logging in production and colorized console output in development, supporting various log levels and request correlation via request IDs.
 
 ### Testing Strategy
 
-**Jest Configuration**
-- ts-jest with ESM support
-- Unit tests in `__tests__` directories
-- Coverage collection from `src/**/*.ts`
-- Test environment: Node.js
-- Mock support for environment variables and external services
+Jest is configured with `ts-jest` for unit testing, covering `src/**/*.ts` files. `Supertest` is used for HTTP assertion testing.
 
 ## External Dependencies
 
 ### Required Services
 
-**PostgreSQL Database**
-- Managed via Prisma ORM
-- Connection string in `DATABASE_URL` environment variable
-- Models:
-  - User (email, fullName, phoneNumber, passwordHash, isVerified, otpHash, otpExpiry)
-  - Session (userId, deviceId, ip, userAgent, revoked, lastSeenAt)
-  - Profile (userId, displayName, headline, about, gender, dob, location, published, completeness)
-  - Photo (profileId, objectKey, url, fileSize, privacyLevel, moderationStatus)
-  - Preference (profileId, basic, lifestyle, education, community, location)
-  - Thread (participantIds, createdAt, updatedAt)
-  - Message (threadId, senderId, content, metadata, deliveredAt, readAt)
-
-**Redis Cache**
-- ioredis client with connection retry logic
-- Connection string in `REDIS_URL` environment variable
-- Used for: refresh token storage, OTP rate limiting, token reuse detection
-- Automatic reconnection on errors
+- **PostgreSQL Database:** Managed via Prisma ORM, storing User, Session, Profile, Photo, Preference, Thread, Message, Notification, NotificationPreference, Plan, Subscription, and Payment models.
+- **Redis Cache:** Used for refresh token storage, OTP rate limiting, and token reuse detection, connected via `ioredis`.
 
 ### Third-Party NPM Packages
 
-**Production Dependencies**
-- `express` - Web framework
-- `@prisma/client` - Database ORM
-- `ioredis` - Redis client
-- `jsonwebtoken` - JWT token generation/verification
-- `bcryptjs` - Password/OTP hashing
-- `zod` - Schema validation
-- `helmet` - Security headers
-- `cors` - CORS handling
-- `express-rate-limit` - Rate limiting
-- `cookie-parser` - Cookie parsing
-- `winston` - Logging
-- `dotenv` - Environment variable loading
-- `socket.io` - Real-time WebSocket server
-- `socket.io-client` - Socket.IO client (for testing)
+**Production Dependencies:**
+- `express`, `@prisma/client`, `ioredis`, `jsonwebtoken`, `bcryptjs`, `zod`, `helmet`, `cors`, `express-rate-limit`, `cookie-parser`, `winston`, `dotenv`, `socket.io`, `socket.io-client`.
 
-**Development Dependencies**
-- `typescript` - Type system
-- `tsx` - TypeScript execution
-- `@typescript-eslint/*` - TypeScript linting
-- `jest` & `ts-jest` - Testing framework
-- `supertest` - HTTP assertion library
-- `prettier` - Code formatting
-- `eslint` - Code linting
+**Development Dependencies:**
+- `typescript`, `tsx`, `@typescript-eslint/*`, `jest`, `ts-jest`, `supertest`, `prettier`, `eslint`.
 
 ### Environment Variables
 
-Required configuration:
-- `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis connection string
-- `JWT_SECRET` - Access token signing key (min 32 chars)
-- `JWT_REFRESH_SECRET` - Refresh token signing key (min 32 chars)
-- `JWT_ACCESS_EXPIRY` - Access token expiry (default: 15m)
-- `JWT_REFRESH_EXPIRY` - Refresh token expiry (default: 7d)
-- `EMAIL_HOST` - SMTP server host (e.g., smtp.gmail.com)
-- `EMAIL_PORT` - SMTP server port (default: 587)
-- `EMAIL_USER` - SMTP authentication username
-- `EMAIL_PASS` - SMTP authentication password
-- `EMAIL_FROM` - Email sender address
-- `NODE_ENV` - Environment (development/production/test)
-- `PORT` - Server port (default: 3000)
-- `LOG_LEVEL` - Winston log level (default: info)
-- `ALLOWED_ORIGINS` - Comma-separated CORS origins
+Critical environment variables for configuration include: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRY`, `JWT_REFRESH_EXPIRY`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`, `NODE_ENV`, `PORT`, `LOG_LEVEL`, and `ALLOWED_ORIGINS`.
 
 ### Future Integration Points
 
-**Email Service Provider**
-- Real Nodemailer implementation with SMTP support
-- Configurable via environment variables (EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS)
-- HTML email templates for OTP and welcome emails
-- Methods: `sendOTP()`, `sendWelcomeEmail()`
-
-**Real-time Messaging (Socket.IO)**
-- Socket.IO v4 integration for real-time chat
-- JWT authentication handshake
-- Per-user rooms for message delivery
-- Token bucket rate limiting (10 messages per 10 seconds)
-- Events: `join_thread`, `send_message`, `typing`, `read_receipt`
-- XSS prevention through HTML escaping
-- Profanity filtering with metadata flagging
-
-**OpenAPI Documentation**
-- Authentication API: `openapi-auth.yaml`
-- Profile API: `openapi-profile.yaml`
-- Chat API: `openapi.chat.yml`
-- Comprehensive documentation for all endpoints with examples
-
-**Testing Documentation**
-- Chat Module: `CHAT_MODULE_README.md` - Complete testing guide for REST and Socket.IO features
-- Discovery/Search Module: `DISCOVERY_SEARCH_MODULE_README.md` - Testing guide for discovery features
-
-## Recent Changes
-
-### Registration Architecture Update (November 2025)
-
-**New Registration Flows:**
-1. **Self Registration** - User creates their own account and profile (User for login, Profile for biodata)
-2. **Parent Registration** - Parent creates candidate's profile; candidate is invited to claim it later
-3. **Candidate Onboarding** - Invited candidate sets password and verifies OTP to gain access
-4. **Guardian Invites** - Additional family members can be invited to manage a profile
-
-**Schema Changes (CandidateLink):**
-- New fields: `profileId`, `childUserId`, `relationship`, `role`
-- `role` values: 'parent' | 'candidate' | 'guardian'
-- `status` values: 'pending' | 'active' | 'revoked'
-- Supports one parent managing multiple profiles
-- Supports multiple users managing one profile
-
-**New API Endpoints:**
-- `POST /auth/candidate/start` - Candidate claims profile (sets password, receives OTP)
-- `POST /auth/guardian/start` - Guardian accepts invite (sets password, receives OTP)
-- `POST /auth/invite-child` - Authenticated user invites additional guardian to profile
-
-**Migration Note:**
-Run Prisma migrations manually after updating the schema:
-```bash
-npx prisma migrate dev --name registration_architecture_update
-```
-
-### Notification System Module (November 2025)
-
-**Architecture:**
-- Event-driven notification system with publish/subscribe pattern
-- In-app notification persistence with Prisma
-- Email notifications via Nodemailer (stub - configure SMTP for production)
-- Push notification queue (FCM stub - configure credentials for production)
-- Priority-based delivery: IMMEDIATE (email + in-app), HIGH (push + in-app), LOW (in-app only)
-- User notification preferences support
-
-**New Models:**
-- `Notification` - In-app notifications with type, title, body, metadata, read status
-- `NotificationPreference` - Per-user settings for email, push, and in-app delivery
-
-**Event Bus (`src/events/eventBus.ts`):**
-```typescript
-import { eventBus } from './events/eventBus.js';
-
-// Emit notification from any module
-eventBus.emitNotification({
-  userId: "user-uuid",
-  type: "interest_received",
-  metadata: { fromName: "John" },
-  priority: "HIGH" // Optional: IMMEDIATE | HIGH | LOW
-});
-```
-
-**Notification Types:**
-- `otp` - Email verification codes
-- `interest_received` - Someone showed interest in user's profile
-- `interest_accepted` - User's interest was accepted
-- `new_message` - New chat message received
-- `profile_view` - Someone viewed user's profile
-- `guardian_added` - User added as guardian
-- `subscription` - Subscription purchase/expiry
-- `moderation` - Profile/photo moderation updates
-
-**New REST Endpoints (JWT Protected):**
-- `GET /api/v1/notifications` - List notifications (paginated, filterable)
-- `GET /api/v1/notifications/unread-count` - Get unread notification count
-- `PATCH /api/v1/notifications/:id/read` - Mark notification as read
-- `PATCH /api/v1/notifications/read-all` - Mark all notifications as read
-- `GET /api/v1/notifications/preferences` - Get notification preferences
-- `PATCH /api/v1/notifications/preferences` - Update notification preferences
-
-**OpenAPI Documentation:**
-- Notification API: `openapi.notifications.yml`
-
-**Migration Note:**
-Run Prisma migrations manually after adding notification models:
-```bash
-npx prisma migrate dev --name add_notification_system
-```
+- **Email Service Provider:** Utilizes Nodemailer for SMTP email delivery, configurable via environment variables, and supporting HTML templates.
+- **Real-time Messaging (Socket.IO):** Integrated for real-time chat with JWT authentication, per-user rooms, rate limiting, and XSS prevention.
+- **OpenAPI Documentation:** Comprehensive API documentation for authentication, profile, chat, notifications, and payments is planned.
+- **Payment Gateways:** Stubs for SSLCommerz, Stripe, bKash, and Apple Pay are in place, awaiting full integration.
