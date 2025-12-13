@@ -112,6 +112,51 @@ export const templates: Record<string, TemplateFunction> = {
         <p>Log in to make the necessary changes.</p>
       `,
   }),
+
+  subscription_activated: (data) => ({
+    title: 'Subscription activated!',
+    body: `Your ${data.planName || 'subscription'} is now active until ${data.endAt ? new Date(data.endAt).toLocaleDateString() : 'next month'}`,
+    emailSubject: 'Your Subscription is Now Active!',
+    emailBody: `
+      <h2>Subscription Activated</h2>
+      <p>Your <strong>${data.planName || 'subscription'}</strong> plan is now active!</p>
+      <p>Your subscription is valid until ${data.endAt ? new Date(data.endAt).toLocaleDateString() : 'next month'}.</p>
+      <p>Enjoy all the premium features that come with your plan.</p>
+    `,
+  }),
+
+  subscription_expired: (data) => ({
+    title: 'Subscription expired',
+    body: `Your ${data.planName || 'subscription'} has expired. Renew now to continue enjoying premium features.`,
+    emailSubject: 'Your Subscription Has Expired',
+    emailBody: `
+      <h2>Subscription Expired</h2>
+      <p>Your <strong>${data.planName || 'subscription'}</strong> plan has expired.</p>
+      <p>Renew now to continue enjoying premium features and connecting with potential matches.</p>
+    `,
+  }),
+
+  subscription_upgraded: (data) => ({
+    title: 'Subscription upgraded!',
+    body: `You have upgraded to ${data.newPlanName || 'a new plan'}. Enjoy your new features!`,
+    emailSubject: 'Subscription Upgraded Successfully!',
+    emailBody: `
+      <h2>Subscription Upgraded</h2>
+      <p>Congratulations! You have upgraded from <strong>${data.oldPlanCode || 'your previous plan'}</strong> to <strong>${data.newPlanName || 'a new plan'}</strong>.</p>
+      <p>Enjoy all the additional features that come with your upgraded plan.</p>
+    `,
+  }),
+
+  payment_failed: (data) => ({
+    title: 'Payment failed',
+    body: `Your payment of ৳${data.amount || '0'} could not be processed. Please try again.`,
+    emailSubject: 'Payment Failed - Action Required',
+    emailBody: `
+      <h2>Payment Failed</h2>
+      <p>We were unable to process your payment of <strong>৳${data.amount || '0'}</strong>.</p>
+      <p>Please try again with a different payment method or contact your bank for assistance.</p>
+    `,
+  }),
 };
 
 export function getTemplate(type: string, data: TemplateData): NotificationTemplate {

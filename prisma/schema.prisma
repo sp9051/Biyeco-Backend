@@ -143,6 +143,7 @@ model Profile {
   photos         Photo[]
   preferences    Preference?
   candidateLinks CandidateLink[]
+  subscriptions  Subscription[]
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   deletedAt      DateTime?
@@ -300,4 +301,59 @@ model DeviceToken {
 
   @@index([userId])
   @@map("device_tokens")
+}
+
+// Payment & Subscription System Models
+model Plan {
+  id           String   @id @default(uuid())
+  code         String   @unique // ALAAP, JATRA, AALOK, OBHIJAAT
+  name         String
+  price        Int      // in BDT (৳)
+  durationDays Int      // 30
+  isInviteOnly Boolean  @default(false)
+  features     Json     // entitlement definition
+  createdAt    DateTime @default(now())
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id            String    @id @default(uuid())
+  profileId     String
+  planId        String
+  status        String    // active | expired | paused | cancelled
+  startAt       DateTime
+  endAt         DateTime
+  pausedUntil   DateTime?
+  createdByUser String    // who paid (parent/candidate)
+  createdAt     DateTime  @default(now())
+
+  profile  Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  plan     Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@index([profileId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  subscriptionId String?
+  profileId      String
+  gateway        String        // sslcommerz | stripe | bkash | applepay
+  amount         Int
+  currency       String        // BDT
+  status         String        // initiated | success | failed | refunded
+  gatewayTxnId   String?
+  rawResponse    Json?
+  createdAt      DateTime      @default(now())
+
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([profileId])
+  @@index([subscriptionId])
+  @@map("payments")
 }

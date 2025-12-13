@@ -6,6 +6,10 @@ export type NotificationType =
   | 'profile_view'
   | 'guardian_added'
   | 'subscription'
+  | 'subscription_activated'
+  | 'subscription_expired'
+  | 'subscription_upgraded'
+  | 'payment_failed'
   | 'moderation';
 
 export type NotificationPriority = 'IMMEDIATE' | 'HIGH' | 'LOW';
