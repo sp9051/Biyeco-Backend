@@ -140,6 +140,10 @@ model Profile {
   prefSmokingHabit       String?
   prefDrinkingHabit      String?
 
+   preferredCurrency    String?         @default("BDT")  // User's preferred currency
+  lastDetectedCountry  String?         // Last detected country from payment
+  currencyDetectedAt   DateTime?       // When currency was last detected
+
   photos         Photo[]
   preferences    Preference?
   candidateLinks CandidateLink[]
@@ -304,14 +308,16 @@ model DeviceToken {
 }
 
 // Payment & Subscription System Models
+// Update Plan model in schema.prisma
 model Plan {
   id           String   @id @default(uuid())
-  code         String   @unique // ALAAP, JATRA, AALOK, OBHIJAAT
+  code         String   @unique
   name         String
-  price        Int      // in BDT (৳)
-  durationDays Int      // 30
+  price        Int
+  durationDays Int
   isInviteOnly Boolean  @default(false)
-  features     Json     // entitlement definition
+  category     String   @default("subscription") // subscription, vendor, feature, etc.
+  features     Json
   createdAt    DateTime @default(now())
 
   subscriptions Subscription[]

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { paymentController } from './payment.controller.js';
 import { webhookController } from './webhook.controller.js';
-import { authMiddleware } from '../../middleware/authMiddleware.js';
+import { authenticateToken } from '../../middleware/authMiddleware.js';
 import { validate } from '../../middleware/validate.js';
 import { checkoutSchema, pauseSubscriptionSchema } from './payment.dto.js';
 
@@ -12,57 +12,57 @@ router.get('/plans/:code', paymentController.getPlanByCode.bind(paymentControlle
 
 router.post(
   '/subscriptions/checkout',
-  authMiddleware,
+  authenticateToken,
   validate(checkoutSchema),
   paymentController.checkout.bind(paymentController)
 );
 
 router.get(
   '/subscriptions/:profileId',
-  authMiddleware,
+  authenticateToken,
   paymentController.getActiveSubscription.bind(paymentController)
 );
 
 router.get(
   '/subscriptions/:profileId/history',
-  authMiddleware,
+  authenticateToken,
   paymentController.getSubscriptionHistory.bind(paymentController)
 );
 
 router.post(
   '/subscriptions/:profileId/pause',
-  authMiddleware,
+  authenticateToken,
   validate(pauseSubscriptionSchema),
   paymentController.pauseSubscription.bind(paymentController)
 );
 
 router.post(
   '/subscriptions/:profileId/resume',
-  authMiddleware,
+  authenticateToken,
   paymentController.resumeSubscription.bind(paymentController)
 );
 
 router.post(
   '/subscriptions/:profileId/cancel',
-  authMiddleware,
+  authenticateToken,
   paymentController.cancelSubscription.bind(paymentController)
 );
 
 router.get(
   '/payments/:profileId/history',
-  authMiddleware,
+  authenticateToken,
   paymentController.getPaymentHistory.bind(paymentController)
 );
 
 router.get(
   '/entitlements/:profileId/usage',
-  authMiddleware,
+  authenticateToken,
   paymentController.getUsageStats.bind(paymentController)
 );
 
 router.post(
   '/entitlements/:profileId/check',
-  authMiddleware,
+  authenticateToken,
   paymentController.checkEntitlement.bind(paymentController)
 );
 

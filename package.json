@@ -35,9 +35,11 @@
   "license": "MIT",
   "dependencies": {
     "@prisma/client": "^6.19.0",
+    "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "express-rate-limit": "^8.2.1",
@@ -48,6 +50,7 @@
     "multer": "^2.0.2",
     "nodemailer": "^7.0.10",
     "socket.io": "^4.8.1",
+    "stripe": "^20.0.0",
     "winston": "^3.18.3",
     "zod": "^3.24.2"
   },

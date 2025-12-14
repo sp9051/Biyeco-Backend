@@ -5,9 +5,22 @@ import { logger } from '../../utils/logger.js';
 const prisma = new PrismaClient();
 
 export class PlanService {
-  async getAllPlans(includeInvite: boolean = false): Promise<PlanResponse[]> {
+  async getAllPlans(
+    includeInvite: boolean = false,
+    category?: string
+  ): Promise<PlanResponse[]> {
+    const where: any = {};
+
+    if (!includeInvite) {
+      where.isInviteOnly = false;
+    }
+
+    if (category) {
+      where.category = category;
+    }
+
     const plans = await prisma.plan.findMany({
-      where: includeInvite ? {} : { isInviteOnly: false },
+      where,
       orderBy: { price: 'asc' },
     });
 
@@ -18,6 +31,7 @@ export class PlanService {
       price: plan.price,
       durationDays: plan.durationDays,
       isInviteOnly: plan.isInviteOnly,
+      category: plan.category,
       features: plan.features as PlanFeatures,
     }));
   }

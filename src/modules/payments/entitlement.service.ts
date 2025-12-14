@@ -70,6 +70,15 @@ export class EntitlementService {
         case 'use_family_messaging':
           return features.familyMessaging === true;
 
+        case 'manual_profile_rewrite':
+          return features.founderConsult === true; // Only for Obhijaat
+
+        case 'view_obhijaat_profiles':
+          return features.signatureFeed === true; // Only for Obhijaat
+
+        case 'attend_founder_events':
+          return features.founderConsult === true; // Only for Obhijaat
+
         default:
           logger.warn('Unknown entitlement action', { action, profileId });
           return false;
@@ -138,9 +147,18 @@ export class EntitlementService {
     return currentCount < limits.newChatsPerMonth;
   }
 
-  private canUploadPhoto(features: PlanFeatures, context?: EntitlementContext): boolean {
+  // private canUploadPhoto(features: PlanFeatures, context?: EntitlementContext): boolean {
+  //   const currentPhotoCount = context?.photoCount ?? 0;
+  //   return currentPhotoCount < features.photos;
+  // }
+  private canUploadPhoto(
+    features: PlanFeatures,
+    context?: EntitlementContext
+  ): boolean {
     const currentPhotoCount = context?.photoCount ?? 0;
-    return currentPhotoCount < features.photos;
+    const maxPhotos = features.photos ?? 0;
+
+    return currentPhotoCount < maxPhotos;
   }
 
   private canViewContact(features: PlanFeatures): boolean {
@@ -294,26 +312,54 @@ export class EntitlementService {
     return value ? parseInt(value, 10) : 0;
   }
 
-  async handleDowngrade(profileId: string, newPlanFeatures: PlanFeatures): Promise<void> {
+  // async handleDowngrade(profileId: string, newPlanFeatures: PlanFeatures): Promise<void> {
+  //   const photos = await prisma.photo.findMany({
+  //     where: { profileId, deletedAt: null },
+  //     orderBy: { createdAt: 'asc' },
+  //   });
+
+  //   if (photos.length > newPlanFeatures.photos) {
+  //     const photosToHide = photos.slice(newPlanFeatures.photos);
+  //     for (const photo of photosToHide) {
+  //       await prisma.photo.update({
+  //         where: { id: photo.id },
+  //         data: { privacyLevel: 'hidden' },
+  //       });
+  //     }
+  //     logger.info('Photos hidden due to downgrade', {
+  //       profileId,
+  //       hiddenCount: photosToHide.length,
+  //     });
+  //   }
+  // }
+  async handleDowngrade(
+    profileId: string,
+    newPlanFeatures: PlanFeatures
+  ): Promise<void> {
     const photos = await prisma.photo.findMany({
       where: { profileId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
     });
 
-    if (photos.length > newPlanFeatures.photos) {
-      const photosToHide = photos.slice(newPlanFeatures.photos);
+    const maxPhotos = newPlanFeatures.photos ?? 0;
+
+    if (photos.length > maxPhotos) {
+      const photosToHide = photos.slice(maxPhotos);
+
       for (const photo of photosToHide) {
         await prisma.photo.update({
           where: { id: photo.id },
           data: { privacyLevel: 'hidden' },
         });
       }
+
       logger.info('Photos hidden due to downgrade', {
         profileId,
         hiddenCount: photosToHide.length,
       });
     }
   }
+
 }
 
 export const entitlementService = new EntitlementService();

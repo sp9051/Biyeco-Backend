@@ -39,10 +39,46 @@ export class WebhookController {
     }
   }
 
+  // async handleStripe(req: Request, res: Response, next: NextFunction): Promise<void> {
+  //   try {
+  //     logger.info('Stripe webhook received', { type: req.body?.type });
+
+  //     const signature = req.headers['stripe-signature'] as string;
+  //     const result = stripeGateway.verifyWebhook(req.body, signature);
+
+  //     if (!result.valid || !result.payload) {
+  //       logger.warn('Stripe webhook verification failed', { error: result.error });
+  //       res.status(400).json({ error: result.error });
+  //       return;
+  //     }
+
+  //     const paymentId = req.body.data?.object?.metadata?.paymentId;
+
+  //     if (!paymentId) {
+  //       logger.warn('Stripe webhook missing paymentId in metadata');
+  //       res.status(400).json({ error: 'Missing payment ID' });
+  //       return;
+  //     }
+
+  //     if (result.payload.status === 'success') {
+  //       await paymentService.handlePaymentSuccess(
+  //         paymentId,
+  //         result.payload.gatewayTxnId,
+  //         result.payload.rawPayload
+  //       );
+  //     } else {
+  //       await paymentService.handlePaymentFailure(paymentId, result.payload.rawPayload);
+  //     }
+
+  //     res.json({ received: true });
+  //   } catch (error) {
+  //     logger.error('Stripe webhook error', { error });
+  //     next(error);
+  //   }
+  // }
+  // Update handleStripe method
   async handleStripe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      logger.info('Stripe webhook received', { type: req.body?.type });
-
       const signature = req.headers['stripe-signature'] as string;
       const result = stripeGateway.verifyWebhook(req.body, signature);
 
@@ -52,10 +88,14 @@ export class WebhookController {
         return;
       }
 
-      const paymentId = req.body.data?.object?.metadata?.paymentId;
+      // Extract paymentId from metadata
+      const rawPayload = result.payload.rawPayload as any;
+      const paymentId = rawPayload?.data?.object?.metadata?.paymentId;
 
       if (!paymentId) {
-        logger.warn('Stripe webhook missing paymentId in metadata');
+        logger.warn('Stripe webhook missing paymentId in metadata', {
+          payload: rawPayload,
+        });
         res.status(400).json({ error: 'Missing payment ID' });
         return;
       }
@@ -64,10 +104,10 @@ export class WebhookController {
         await paymentService.handlePaymentSuccess(
           paymentId,
           result.payload.gatewayTxnId,
-          result.payload.rawPayload
+          rawPayload
         );
       } else {
-        await paymentService.handlePaymentFailure(paymentId, result.payload.rawPayload);
+        await paymentService.handlePaymentFailure(paymentId, rawPayload);
       }
 
       res.json({ received: true });
@@ -76,6 +116,8 @@ export class WebhookController {
       next(error);
     }
   }
+
+  // Similarly update other webhook handlers
 
   async handleBkash(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

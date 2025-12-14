@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import {
-  PaymentStatus,
+  // PaymentStatus,
   PaymentGateway,
   CheckoutRequest,
   CheckoutResponse,
@@ -15,24 +15,44 @@ import { bkashGateway } from './gateways/bkash.gateway.js';
 import { applepayGateway } from './gateways/applepay.gateway.js';
 import { eventBus } from '../../events/eventBus.js';
 import { logger } from '../../utils/logger.js';
+import { currencyService } from './currency.service.js';
 
 const prisma = new PrismaClient();
 
 export class PaymentService {
   async initiateCheckout(
     request: CheckoutRequest,
-    userId: string
+    userId: string,
+    requestIp?: string
   ): Promise<CheckoutResponse> {
-    const { profileId, planCode, gateway } = request;
+    const { profileId, planCode, gateway, currency: requestedCurrency } = request;
 
-    const hasAccess = await this.validateProfileAccess(profileId, userId);
-    if (!hasAccess) {
-      throw new Error('You do not have access to this profile');
+    // Get user's detected currency
+    // const requestIp = req?.ip || req?.socket?.remoteAddress;
+    const currencyResult = await currencyService.detectCurrency(profileId, requestIp);
+
+    // Use requested currency if provided, otherwise detected currency
+    const currency = requestedCurrency || currencyResult.currency;
+
+    // Check for potential cheating
+    if (!currencyResult.allSourcesMatch) {
+      logger.warn('Currency mismatch detected', {
+        profileId,
+        currencyResult,
+        requestedCurrency,
+      });
     }
 
     const plan = await planService.getPlanByCode(planCode);
     if (!plan) {
       throw new Error('Plan not found');
+    }
+
+    // Convert amount based on currency if needed
+    let amount = plan.price;
+    if (currency !== 'BDT') {
+      // Implement currency conversion logic here
+      amount = await this.convertCurrency(plan.price, 'BDT', currency);
     }
 
     const validation = await planService.validatePlanAccess(planCode, false);
@@ -44,11 +64,12 @@ export class PaymentService {
       data: {
         profileId,
         gateway,
-        amount: plan.price,
-        currency: 'BDT',
+        amount,
+        currency,
         status: 'initiated',
       },
     });
+
 
     logger.info('Payment initiated', {
       paymentId: payment.id,
@@ -61,14 +82,19 @@ export class PaymentService {
     const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5000';
     const gatewayRequest: GatewayPaymentRequest = {
       paymentId: payment.id,
-      amount: plan.price,
-      currency: 'BDT',
+      amount,
+      currency, // Use detected currency
       profileId,
       planCode: plan.code,
       planName: plan.name,
       successUrl: `${baseUrl}/api/v1/payments/callback/success`,
       failUrl: `${baseUrl}/api/v1/payments/callback/fail`,
       cancelUrl: `${baseUrl}/api/v1/payments/callback/cancel`,
+      currencyInfo: {
+        code: currency,
+        symbol: this.getCurrencySymbol(currency),
+        countryCode: currencyResult.countryCode,
+      },
     };
 
     const gatewayResponse = await this.processGatewayRequest(gateway, gatewayRequest);
@@ -108,9 +134,16 @@ export class PaymentService {
       where: { id: paymentId },
     });
 
+
+
     if (!payment) {
       throw new Error('Payment not found');
     }
+    //       await currencyService.updateCurrencyFromPayment(
+    //   payment.profileId,
+    //   payment.currency,  // The currency they actually paid in
+    //   this.getCountryFromGateway(rawResponse) // Country from payment method
+    // );
 
     if (payment.status === 'success') {
       logger.warn('Payment already processed', { paymentId });
@@ -244,23 +277,23 @@ export class PaymentService {
     return this.formatPaymentResponse(updated);
   }
 
-  private async validateProfileAccess(profileId: string, userId: string): Promise<boolean> {
-    const profile = await prisma.profile.findFirst({
-      where: { id: profileId, userId },
-    });
+  // private async validateProfileAccess(profileId: string, userId: string): Promise<boolean> {
+  //   const profile = await prisma.profile.findFirst({
+  //     where: { id: profileId, userId },
+  //   });
 
-    if (profile) return true;
+  //   if (profile) return true;
 
-    const candidateLink = await prisma.candidateLink.findFirst({
-      where: {
-        profileId,
-        parentUserId: userId,
-        status: 'active',
-      },
-    });
+  //   const candidateLink = await prisma.candidateLink.findFirst({
+  //     where: {
+  //       profileId,
+  //       parentUserId: userId,
+  //       status: 'active',
+  //     },
+  //   });
 
-    return !!candidateLink;
-  }
+  //   return !!candidateLink;
+  // }
 
   private async processGatewayRequest(
     gateway: PaymentGateway,
@@ -303,6 +336,38 @@ export class PaymentService {
       gatewayTxnId: payment.gatewayTxnId,
       createdAt: payment.createdAt,
     };
+  }
+
+  private async convertCurrency(
+    amount: number,
+    fromCurrency: string,
+    toCurrency: string
+  ): Promise<number> {
+    if (fromCurrency === toCurrency) return amount;
+
+    // Implement currency conversion API call
+    // For now, return a fixed conversion (you should use a real API)
+    const conversionRates: Record<string, number> = {
+      USD: 0.0091, // 1 BDT = 0.0091 USD
+      EUR: 0.0084,
+      GBP: 0.0072,
+      INR: 0.76,
+    };
+
+    const rate = conversionRates[toCurrency] || 1;
+    return Math.round(amount * rate * 100) / 100; // Round to 2 decimal places
+  }
+
+  private getCurrencySymbol(currency: string): string {
+    const symbols: Record<string, string> = {
+      BDT: '৳',
+      USD: '$',
+      EUR: '€',
+      GBP: '£',
+      INR: '₹',
+    };
+
+    return symbols[currency] || currency;
   }
 }
 

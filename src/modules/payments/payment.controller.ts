@@ -4,7 +4,7 @@ import { subscriptionService } from './subscription.service.js';
 import { paymentService } from './payment.service.js';
 import { entitlementService } from './entitlement.service.js';
 import { CheckoutDTO, PauseSubscriptionDTO } from './payment.dto.js';
-import { successResponse, errorResponse } from '../../utils/response.js';
+import { sendSuccess, sendError } from '../../utils/response.js';
 import { logger } from '../../utils/logger.js';
 
 export class PaymentController {
@@ -13,7 +13,8 @@ export class PaymentController {
       const includeInvite = req.query.includeInvite === 'true';
       const plans = await planService.getAllPlans(includeInvite);
 
-      res.json(successResponse(plans, 'Plans retrieved successfully'));
+      res.json(sendSuccess(res, plans, 'Plans retrieved successfully', 200));
+
     } catch (error) {
       next(error);
     }
@@ -25,11 +26,12 @@ export class PaymentController {
       const plan = await planService.getPlanByCode(code);
 
       if (!plan) {
-        res.status(404).json(errorResponse('Plan not found', 'NOT_FOUND'));
+        sendError(res, 'Plan not found', 404);
+        // res.status(404).json(sendError(res, 'Unauthorized', 401);errorResponse('Plan not found', 'NOT_FOUND'));
         return;
       }
 
-      res.json(successResponse(plan, 'Plan retrieved successfully'));
+      res.json(sendSuccess(res, plan, 'Plans retrieved successfully', 200));
     } catch (error) {
       next(error);
     }
@@ -40,12 +42,31 @@ export class PaymentController {
       const userId = req.userId!;
       const dto: CheckoutDTO = req.body;
 
-      const result = await paymentService.initiateCheckout(dto, userId);
+      const requestIp = this.extractClientIp(req);
 
-      res.json(successResponse(result, 'Checkout initiated successfully'));
+      const result = await paymentService.initiateCheckout(dto, userId, requestIp);
+
+      res.json(sendSuccess(res, result, 'Checkout initiated successfully', 200));
     } catch (error) {
       next(error);
     }
+  }
+
+  private extractClientIp(req: Request): string {
+    // Get IP from various headers (for proxy/load balancer setups)
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      return Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+    }
+
+    // Get from socket
+    const socketIp = req.socket?.remoteAddress;
+    if (socketIp) {
+      return socketIp;
+    }
+
+    // Fallback
+    return req.ip || '127.0.0.1';
   }
 
   async getActiveSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -54,11 +75,13 @@ export class PaymentController {
       const subscription = await subscriptionService.getActiveSubscription(profileId);
 
       if (!subscription) {
-        res.status(404).json(errorResponse('No active subscription found', 'NOT_FOUND'));
+        sendError(res, 'No active subscription found', 404);
+
+        // res.status(404).json(errorResponse('No active subscription found', 'NOT_FOUND'));
         return;
       }
 
-      res.json(successResponse(subscription, 'Subscription retrieved successfully'));
+      res.json(sendSuccess(res, subscription, 'Subscription retrieved successfully', 200));
     } catch (error) {
       next(error);
     }
@@ -69,7 +92,7 @@ export class PaymentController {
       const { profileId } = req.params;
       const subscriptions = await subscriptionService.getSubscriptionHistory(profileId);
 
-      res.json(successResponse(subscriptions, 'Subscription history retrieved successfully'));
+      res.json(sendSuccess(res, subscriptions, 'Subscription history retrieved successfully', 200));
     } catch (error) {
       next(error);
     }
@@ -83,7 +106,7 @@ export class PaymentController {
 
       const subscription = await subscriptionService.pauseSubscription(profileId, pauseDays, userId);
 
-      res.json(successResponse(subscription, 'Subscription paused successfully'));
+      res.json(sendSuccess(res, subscription, 'Subscription paused successfully', 200));
     } catch (error) {
       next(error);
     }
@@ -96,7 +119,7 @@ export class PaymentController {
 
       const subscription = await subscriptionService.resumeSubscription(profileId, userId);
 
-      res.json(successResponse(subscription, 'Subscription resumed successfully'));
+      res.json(sendSuccess(res, subscription, 'Subscription resumed successfully', 200));
     } catch (error) {
       next(error);
     }
@@ -109,7 +132,7 @@ export class PaymentController {
 
       const subscription = await subscriptionService.cancelSubscription(profileId, userId);
 
-      res.json(successResponse(subscription, 'Subscription cancelled successfully'));
+      res.json(sendSuccess(res, subscription, 'Subscription cancelled successfully', 200));
     } catch (error) {
       next(error);
     }
@@ -120,7 +143,7 @@ export class PaymentController {
       const { profileId } = req.params;
       const payments = await paymentService.getPaymentHistory(profileId);
 
-      res.json(successResponse(payments, 'Payment history retrieved successfully'));
+      res.json(sendSuccess(res, payments, 'Payment history retrieved successfully', 200));
     } catch (error) {
       next(error);
     }
@@ -136,17 +159,18 @@ export class PaymentController {
       ]);
 
       if (!features) {
-        res.status(404).json(errorResponse('No active subscription found', 'NOT_FOUND'));
+        sendError(res, 'No active subscription found', 404);
+        // res.status(404).json(errorResponse('No active subscription found', 'NOT_FOUND'));
         return;
       }
 
       res.json(
-        successResponse(
+        sendSuccess(res,
           {
             features,
             usage,
           },
-          'Usage stats retrieved successfully'
+          'Usage stats retrieved successfully', 200
         )
       );
     } catch (error) {
@@ -162,9 +186,9 @@ export class PaymentController {
       const canPerform = await entitlementService.can(profileId, action, context);
 
       res.json(
-        successResponse(
+        sendSuccess(res,
           { allowed: canPerform, action },
-          canPerform ? 'Action allowed' : 'Action not allowed'
+          canPerform ? 'Action allowed' : 'Action not allowed', 200
         )
       );
     } catch (error) {
@@ -172,7 +196,7 @@ export class PaymentController {
     }
   }
 
-  async handlePaymentCallback(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async handlePaymentCallback(req: Request, res: Response): Promise<void> {
     try {
       const { status } = req.params;
       const { paymentId, session_id, tran_id } = req.query;
