@@ -314,8 +314,8 @@ model Plan {
   code         String   @unique
   name         String
   price        Int
-  durationDays Int
-  isInviteOnly Boolean  @default(false)
+  durationDays Int      @map("duration_days")
+  isInviteOnly Boolean  @default(false) @map("is_invite_only")
   category     String   @default("subscription") // subscription, vendor, feature, etc.
   features     Json
   createdAt    DateTime @default(now())
