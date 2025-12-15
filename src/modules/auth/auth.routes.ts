@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authController } from './auth.controller.js';
 import { validate } from '../../middleware/validate.js';
-import { VerifyOTPSchema, LoginSchema, CandidateStartSchema, InviteChildSchema } from './auth.dto.js';
+import { VerifyOTPSchema, LoginSchema, CandidateStartSchema, InviteChildSchema, GoogleAuthSchema, GoogleOnboardingSchema } from './auth.dto.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 
 const router = Router();
@@ -40,5 +40,20 @@ router.post('/candidate/start', otpLimiter, validate(CandidateStartSchema), auth
 router.post('/guardian/start', otpLimiter, validate(CandidateStartSchema), authController.guardianStart.bind(authController));
 
 router.post('/invite-child', authenticateToken, validate(InviteChildSchema), authController.inviteChild.bind(authController));
+
+router.post(
+  '/google',
+  authLimiter,
+  validate(GoogleAuthSchema),
+  authController.googleAuth.bind(authController)
+);
+router.post(
+  '/google/complete',
+  authenticateToken,
+  authLimiter,
+  validate(GoogleOnboardingSchema),
+  authController.completeGoogleOnboarding.bind(authController)
+);
+
 
 export default router;

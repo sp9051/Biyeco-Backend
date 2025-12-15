@@ -1,7 +1,8 @@
 import { PrismaClient, Profile } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
-import { RegisterDTO, VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateStartDTO, InviteChildDTO } from './auth.dto.js';
+import { verifyGoogleToken } from './google.service.js';
+import { RegisterDTO, VerifyOTPDTO, LoginDTO, SelfRegistrationDTO, ParentRegistrationDTO, CandidateStartDTO, InviteChildDTO, GoogleAuthDTO, GoogleParentOnboardingDTO, GoogleSelfOnboardingDTO } from './auth.dto.js';
 import { emailService } from './email.service.js';
 import { tokenService } from './token.service.js';
 import { sessionService } from './session.service.js';
@@ -9,7 +10,6 @@ import { AuthResponse, SessionInfo, UserResponse } from './auth.types.js';
 import { logger } from '../../utils/logger.js';
 import { redis } from '../../config/redis.js';
 import { generateRegisteredUserId } from '../../utils/profileId.generator.js';
-
 
 const prisma = new PrismaClient();
 
@@ -452,6 +452,245 @@ export class AuthService {
       await redis.setex(key, OTP_RATE_LIMIT_WINDOW, '1');
     }
   }
+
+  async googleAuth(dto: GoogleAuthDTO, sessionInfo: SessionInfo): Promise<AuthResponse> {
+    const { idToken, creatingFor, lookingFor } = dto;
+
+    const googleUser = await verifyGoogleToken(idToken);
+
+    let user = await prisma.user.findUnique({
+      where: { email: googleUser.email },
+    });
+    let newRegistrations = false;
+
+    // 🔹 CASE 1: Existing EMAIL user → link Google
+    if (user && !user.googleId) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          googleId: googleUser.sub,
+          authProvider: 'GOOGLE',
+          isVerified: true,
+        },
+      });
+    }
+
+    // 🔹 CASE 2: New Google user
+    if (!user) {
+      newRegistrations = true;
+      user = await prisma.user.create({
+        data: {
+          email: googleUser.email,
+          firstName: googleUser.given_name,
+          lastName: googleUser.family_name,
+          googleId: googleUser.sub,
+          authProvider: 'GOOGLE',
+          isVerified: true,
+          role: creatingFor || '',
+          lookingFor,
+        },
+      });
+
+      // Create profile immediately (same as registerSelf)
+      await prisma.profile.create({
+        data: {
+          userId: user.id,
+          registeredUserId: generateRegisteredUserId(),
+        },
+      });
+    }
+
+    // 🔹 Resolve profile (reuse your logic)
+    const profile = await prisma.profile.findUnique({
+      where: { userId: user.id },
+    });
+
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    const sessionId = await sessionService.createSession(user.id, sessionInfo);
+
+    const accessToken = tokenService.generateAccessToken(
+      user.id,
+      user.email,
+      sessionId
+    );
+
+    const refreshToken = await tokenService.generateRefreshToken(
+      user.id,
+      sessionId
+    );
+
+    // Welcome email only on first verification
+    if (newRegistrations) {
+      await emailService.sendWelcomeEmail(user.email, user.firstName || undefined);
+    }
+
+    return {
+      accessToken,
+      refreshToken,
+      user: this.sanitizeUser(user),
+      profile,
+    };
+  }
+
+  async completeGoogleOnboarding(
+    userId: string,
+    dto: GoogleSelfOnboardingDTO | GoogleParentOnboardingDTO
+  ): Promise<{ success: boolean; message: string }> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (user.authProvider !== 'GOOGLE') {
+      throw new Error('This endpoint is only for Google-auth users');
+    }
+
+    await prisma.$transaction(async (tx) => {
+
+      // 🔹 SELF GOOGLE FLOW
+      if (dto.role === 'self') {
+        const {
+          creatingFor,
+          lookingFor,
+          gender,
+          dob,
+          city,
+          state,
+          country,
+        } = dto;
+
+        // Update user
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            role: 'self',
+            creatingFor,
+            lookingFor,
+          },
+        });
+
+        // Update profile
+        await tx.profile.update({
+          where: { userId },
+          data: {
+            gender,
+            dob: new Date(dob),
+            location: {
+              city,
+              state,
+              country,
+            },
+          },
+        });
+      }
+      else {
+        const {
+          creatingFor,
+          lookingFor,
+          candidate,
+        } = dto;
+
+        // Update parent user
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            role: 'parent',
+            creatingFor,
+            lookingFor,
+          },
+        });
+
+        // Create or update candidate user
+        let candidateUser = await tx.user.findUnique({
+          where: { email: candidate.email },
+        });
+
+        if (!candidateUser) {
+          candidateUser = await tx.user.create({
+            data: {
+              role: 'candidate',
+              email: candidate.email,
+              firstName: candidate.firstName,
+              lastName: candidate.lastName,
+              phoneNumber: candidate.phoneNumber,
+              isVerified: false,
+            },
+          });
+        }
+
+        // Create or update profile
+        let profile = await tx.profile.findUnique({
+          where: { userId: userId },
+        });
+        if (!profile) {
+          throw new Error('Profile does not Exists');
+        }
+
+        // if (!profile) {
+        //   profile = await tx.profile.create({
+        //     data: {
+        //       userId: candidateUser.id,
+        //       registeredUserId: generateRegisteredUserId(),
+        //       gender: candidate.gender,
+        //       dob: new Date(candidate.dob),
+        //       location: {
+        //         city: candidate.city,
+        //         state: candidate.state,
+        //         country: candidate.country,
+        //       },
+        //     },
+        //   });
+
+        // }
+        // Update profile
+        profile = await tx.profile.update({
+          where: { userId },
+          data: {
+            gender: candidate.gender,
+            dob: new Date(candidate.dob),
+            location: {
+              city: candidate.city,
+              state: candidate.state,
+              country: candidate.country,
+            },
+          },
+        });
+
+        // Link parent ↔ candidate
+        const existingLink = await tx.candidateLink.findFirst({
+          where: {
+            profileId: profile.id,
+            parentUserId: userId,
+          },
+        });
+
+        if (!existingLink) {
+          await tx.candidateLink.create({
+            data: {
+              profileId: profile.id,
+              parentUserId: userId,
+              childUserId: candidateUser.id,
+              relationship: creatingFor,
+              role: 'parent',
+              status: 'active',
+            },
+          });
+        }
+      }
+
+    });
+
+    return {
+      success: true,
+      message: 'Google onboarding completed successfully',
+    };
+  }
+
+
 
   // async registerSelf(dto: SelfRegistrationDTO): Promise<{ success: boolean; message: string }> {
   //   const { lookingFor, creatingFor, gender, dob, city, state, country, email, firstName, lastName, phoneNumber, password } = dto;

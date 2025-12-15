@@ -5,6 +5,43 @@ import { SessionInfo } from './auth.types.js';
 import { sendSuccess } from '../../utils/response.js';
 
 export class AuthController {
+  async googleAuth(req: Request, res: Response, next: NextFunction) {
+    try {
+      const sessionInfo: SessionInfo = {
+        deviceId: req.headers['x-device-id'] as string,
+        ip: (req.headers['x-forwarded-for'] as string) || req.ip,
+        userAgent: req.headers['user-agent'],
+      };
+
+      const result = await authService.googleAuth(req.body, sessionInfo);
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      return sendSuccess(res, result, 'Google login successful', 200);
+    } catch (err) {
+      next(err);
+      return; // ✅ ensures a return value
+    }
+  }
+
+  async completeGoogleOnboarding(req: Request, res: Response) {
+    const userId = req.userId; // from authenticateToken
+    const dto = req.body;
+
+    if (!userId) {
+      throw new Error('Unauthorized');
+    }
+
+    const result = await authService.completeGoogleOnboarding(userId, dto);
+
+    res.status(200).json(result);
+  }
+
   async register(req: Request, res: Response, next: NextFunction) {
     try {
       const body = req.body;

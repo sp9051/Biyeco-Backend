@@ -10,6 +10,37 @@ export const RegisterSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
+export const CompleteGoogleSelfSchema = z.object({
+  role: z.literal('self'),
+  creatingFor: z.string(),
+  lookingFor: z.string().optional(),
+
+  gender: z.string(),
+  dob: z.string(),
+  city: z.string(),
+  state: z.string(),
+  country: z.string(),
+});
+
+export const CompleteGoogleParentSchema = z.object({
+  role: z.literal('parent'),
+  creatingFor: z.string(),
+  lookingFor: z.string().optional(),
+
+  candidate: z.object({
+    email: z.string().email(),
+    firstName: z.string().min(2),
+    lastName: z.string().min(2),
+    gender: z.string(),
+    dob: z.string(),
+    city: z.string(),
+    state: z.string(),
+    country: z.string(),
+    phoneNumber: z.string().optional(),
+  }),
+});
+
+
 export const SelfRegistrationSchema = z.object({
   lookingFor: z.string(),
   creatingFor: z.string(),
@@ -83,6 +114,31 @@ export const CandidateVerifySchema = z.object({
   password: z.string().min(8),
 });
 
+export const GoogleAuthSchema = z.object({
+  idToken: z.string(),
+  creatingFor: z.string().optional(), // self / parent
+  lookingFor: z.string().optional(),
+});
+
+export type GoogleAuthDTO = z.infer<typeof GoogleAuthSchema>;
+
+export type GoogleSelfOnboardingDTO = z.infer<
+  typeof CompleteGoogleSelfSchema
+>;
+
+export type GoogleParentOnboardingDTO = z.infer<
+  typeof CompleteGoogleParentSchema
+>;
+
+
+export const GoogleOnboardingSchema = z.discriminatedUnion('role', [
+  CompleteGoogleSelfSchema,
+  CompleteGoogleParentSchema,
+]);
+
+export type GoogleOnboardingDTO = z.infer<
+  typeof GoogleOnboardingSchema
+>;
 export type RegisterDTO = z.infer<typeof RegisterSchema>;
 export type SelfRegistrationDTO = z.infer<typeof SelfRegistrationSchema>;
 export type ParentRegistrationDTO = z.infer<typeof ParentRegistrationSchema>;
