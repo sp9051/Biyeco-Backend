@@ -40,6 +40,8 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
+    "date-fns": "^4.1.0",
+    "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "express-rate-limit": "^8.2.1",
@@ -74,7 +76,7 @@
     "prisma": "^6.19.0",
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.5",
-    "tsx": "^4.20.5",
+    "tsx": "^4.21.0",
     "typescript": "^5.6.3"
   },
   "engines": {

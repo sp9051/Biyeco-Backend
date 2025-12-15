@@ -363,3 +363,37 @@ model Payment {
   @@index([subscriptionId])
   @@map("payments")
 }
+
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+}
+
+model Admin {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  role      AdminRole
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("admins")
+}
+
+model Coupon {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  discountPct  Int
+  planCode     String   // ALAAP | ALOK | JATRA | OBHIJAAT
+  maxUses      Int?
+  usedCount    Int      @default(0)
+  expiresAt    DateTime?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([planCode])
+  @@map("coupons")
+}
