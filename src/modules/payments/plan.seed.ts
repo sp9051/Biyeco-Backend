@@ -221,6 +221,7 @@ export async function seedPlans(): Promise<void> {
         price: plan.price,
         durationDays: plan.durationDays,
         isInviteOnly: plan.isInviteOnly,
+        category: plan.category,
         features: plan.features as any,
       },
       create: {
@@ -229,6 +230,7 @@ export async function seedPlans(): Promise<void> {
         price: plan.price,
         durationDays: plan.durationDays,
         isInviteOnly: plan.isInviteOnly,
+        category: plan.category,
         features: plan.features as any,
       },
     });

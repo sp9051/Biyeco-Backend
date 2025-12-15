@@ -39,4 +39,8 @@ export const DEFAULT_PRIORITY_BY_TYPE: Record<NotificationType, NotificationPrio
   guardian_added: 'IMMEDIATE',
   subscription: 'IMMEDIATE',
   moderation: 'HIGH',
+  subscription_activated: 'IMMEDIATE',
+  subscription_expired: 'IMMEDIATE',
+  subscription_upgraded: 'IMMEDIATE',
+  payment_failed: 'IMMEDIATE'
 };

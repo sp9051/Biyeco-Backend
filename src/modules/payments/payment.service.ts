@@ -26,6 +26,7 @@ export class PaymentService {
     requestIp?: string
   ): Promise<CheckoutResponse> {
     const { profileId, planCode, gateway, currency: requestedCurrency } = request;
+    console.log(userId)
 
     // Get user's detected currency
     // const requestIp = req?.ip || req?.socket?.remoteAddress;

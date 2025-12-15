@@ -112,6 +112,7 @@ export class EntitlementService {
     features: PlanFeatures,
     context?: EntitlementContext
   ): Promise<boolean> {
+    console.log(profileId)
     if (features.messaging === false) {
       return false;
     }
@@ -131,6 +132,7 @@ export class EntitlementService {
     features: PlanFeatures,
     context?: EntitlementContext
   ): Promise<boolean> {
+    console.log(context)
     if (features.messaging === false) {
       return false;
     }
@@ -170,6 +172,7 @@ export class EntitlementService {
     features: PlanFeatures,
     context?: EntitlementContext
   ): Promise<boolean> {
+    console.log(context)
     const maxBoosts = features.boosts ?? 0;
     if (maxBoosts === 0) return false;
 
@@ -185,6 +188,7 @@ export class EntitlementService {
     features: PlanFeatures,
     context?: EntitlementContext
   ): Promise<boolean> {
+    console.log(context)
     const maxSpotlight = features.spotlight ?? 0;
     if (maxSpotlight === 0) return false;
 
@@ -200,6 +204,7 @@ export class EntitlementService {
     features: PlanFeatures,
     context?: EntitlementContext
   ): Promise<boolean> {
+    console.log(context)
     const maxIcebreakers = features.icebreakersPerMonth ?? 0;
     if (maxIcebreakers === 0) return false;
 
@@ -215,6 +220,7 @@ export class EntitlementService {
     features: PlanFeatures,
     context?: EntitlementContext
   ): Promise<boolean> {
+    console.log(context)
     const maxParentIcebreakers = features.parentIcebreakers ?? 0;
     if (maxParentIcebreakers === 0) return false;
 
@@ -238,6 +244,7 @@ export class EntitlementService {
     features: PlanFeatures,
     context?: EntitlementContext
   ): Promise<boolean> {
+    console.log(context)
     const maxAiIntros = features.aiIntroductions ?? 0;
     if (maxAiIntros === 0) return false;
 

@@ -205,6 +205,7 @@ export class ApplePayGateway {
       const session = await this.stripe.applePayDomains.create({
         domain_name: process.env.APP_DOMAIN || 'localhost',
       });
+      console.log(session)
 
       // In a real implementation, you would create a merchant session
       // This is a simplified version

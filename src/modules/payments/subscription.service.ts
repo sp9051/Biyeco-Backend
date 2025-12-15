@@ -167,6 +167,7 @@ export class SubscriptionService {
     const pausedAt = subscription.pausedUntil ? new Date(subscription.pausedUntil.getTime() - 30 * 24 * 60 * 60 * 1000) : now;
     const pausedDuration = now.getTime() - pausedAt.getTime();
     const newEndAt = new Date(subscription.endAt.getTime() - pausedDuration + (now.getTime() - (subscription.pausedUntil?.getTime() || now.getTime())));
+    console.log(newEndAt)
 
     const updated = await prisma.subscription.update({
       where: { id: subscription.id },

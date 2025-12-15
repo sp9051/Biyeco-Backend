@@ -20,7 +20,9 @@ export class CurrencyService {
         this.ipApiKey = process.env.IP_GEOLOCATION_API_KEY || '';
     }
 
+
     async detectCurrency(profileId: string, requestIp?: string): Promise<CountryDetectionResult> {
+        console.log(this.ipApiKey)
         try {
             const detectionSources = await this.getAllDetectionSources(profileId, requestIp);
             const finalResult = this.resolveCurrency(detectionSources);
