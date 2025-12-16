@@ -21,6 +21,8 @@ import connectionsRoutes from './modules/connections/connections.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import paymentRoutes from './modules/payments/payment.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
+import adminAdminsRoutes from './modules/admin/admins/admin.routes.js';
+
 
 export function createApp() {
   const app = express();
@@ -83,7 +85,15 @@ export function createApp() {
    * 6️⃣ STATIC FILES
    * =====================================================
    */
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  app.use(
+  '/uploads',
+  express.static(path.join(process.cwd(), 'uploads'), {
+    setHeaders: (res) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    },
+  })
+);
 
   /**
    * =====================================================
@@ -108,7 +118,12 @@ export function createApp() {
   app.use('/api/v1/connections', connectionsRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/payments', paymentRoutes);
-  app.use('/api/v1/admin', adminRoutes);
+  // Admin core (auth, dashboard, etc.)
+app.use('/api/v1/admin', adminRoutes);
+
+// Admin management (SUPER_ADMIN only)
+app.use('/api/v1/admin/admins', adminAdminsRoutes);
+
 
   /**
    * =====================================================
