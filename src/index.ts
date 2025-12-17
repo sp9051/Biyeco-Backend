@@ -15,14 +15,42 @@ import profilePhotosRoutes from './modules/profile/profile.photos.routes.js';
 import discoveryRoutes from './modules/discovery/discovery.routes.js';
 import searchRoutes from './modules/search/search.routes.js';
 import connectionsRoutes from './modules/connections/connections.routes.js';
+import chatRoutes from './modules/chat/chat.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import paymentRoutes from './modules/payments/payment.routes.js';
 import path from 'path';
+// import { Server } from 'socket.io';
+import { Server as SocketIOServer } from 'socket.io';
+
+import { createServer } from 'http';
+import { attachChat } from './modules/chat/chat.gateway.js';
 
 export function createApp() {
   const app = express();
+  const httpServer = createServer(app);
+
 
   app.use(requestIdMiddleware);
+
+  // const io = new Server(httpServer, {
+  //   cors: {
+  //     origin: "*",
+  //   },
+  // });
+
+  // Create HTTP server (if not already created)
+  // const httpServer = createServer(app);
+
+  // Initialize Socket.IO
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+      credentials: true,
+    },
+  });
+
+  // Attach chat gateway
+  attachChat(io);
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
@@ -35,9 +63,19 @@ export function createApp() {
     next();
   });
 
+
+
   app.use(helmetMiddleware);
   app.use(corsMiddleware);
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  app.use(
+    '/uploads',
+    express.static(path.join(process.cwd(), 'uploads'), {
+      setHeaders: (res) => {
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+      },
+    })
+  );
 
   app.use(rateLimiter);
 
@@ -56,6 +94,7 @@ export function createApp() {
   app.use('/api/v1/connections', connectionsRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/payments', paymentRoutes);
+  app.use('/api/v1/chats', chatRoutes);
   // app.use('/uploads', express.static(path.resolve('uploads')));
 
   app.use((_req: Request, res: Response) => {
@@ -70,7 +109,7 @@ export function createApp() {
 
   app.use(errorHandler);
 
-  return app;
+  return { app, httpServer };
 }
 
-export const app = createApp();
+export const { app, httpServer } = createApp();

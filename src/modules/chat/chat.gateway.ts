@@ -13,7 +13,7 @@ import {
 const rateLimiter = new SocketRateLimiter({
   maxTokens: 10,
   refillRate: 10,
-  refillInterval: 10000,
+  refillInterval: 1000000000000,
 });
 
 export function attachChat(io: Server): void {

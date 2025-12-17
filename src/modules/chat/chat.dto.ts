@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const createThreadSchema = z.object({
   participantIds: z
     .array(z.string().uuid())
-    .min(2, 'At least 2 participants required')
+    .min(1, 'At least 2 participants required')
     .max(10, 'Maximum 10 participants allowed'),
 });
 

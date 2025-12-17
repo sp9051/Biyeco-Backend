@@ -350,19 +350,19 @@ export class ChatService {
       },
     });
 
-    if (mutualMatch) {
-      const reverseMatch = await prisma.interest.findFirst({
-        where: {
-          fromUserId: mutualMatch.toUserId,
-          toUserId: mutualMatch.fromUserId,
-          status: 'accepted',
-        },
-      });
+    // if (mutualMatch) {
+    //   const reverseMatch = await prisma.interest.findFirst({
+    //     where: {
+    //       fromUserId: mutualMatch.toUserId,
+    //       toUserId: mutualMatch.fromUserId,
+    //       status: 'accepted',
+    //     },
+    //   });
 
-      return !!reverseMatch;
-    }
+    //   return !!reverseMatch;
+    // }
 
-    return false;
+    return !!mutualMatch;
   }
 
   async canUserChat(userA: string, userB: string): Promise<boolean> {

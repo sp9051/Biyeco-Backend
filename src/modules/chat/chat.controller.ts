@@ -89,10 +89,14 @@ export class ChatController {
 
       const effectiveUserId = await this.resolveCandidateUserId(userId);
       const input = createThreadSchema.parse(req.body);
+      console.log(input)
+      console.log(input.participantIds)
+
 
       if (!input.participantIds.includes(effectiveUserId)) {
         input.participantIds.push(effectiveUserId);
       }
+      console.log(input.participantIds)
 
       logger.info('Create thread request', {
         userId,
