@@ -14,10 +14,15 @@ export interface PriorityConfig {
 
 export const PRIORITY_CONFIG: Record<NotificationPriority, PriorityConfig> = {
   IMMEDIATE: {
-    deliveryMethods: ['email', 'in_app'],
+    deliveryMethods: ['push', 'email', 'in_app'],
     retryAttempts: 3,
     retryDelayMs: 1000,
   },
+  // IMMEDIATE: {
+  //   deliveryMethods: ['email', 'in_app'],
+  //   retryAttempts: 3,
+  //   retryDelayMs: 1000,
+  // },
   HIGH: {
     deliveryMethods: ['push', 'in_app'],
     retryAttempts: 2,

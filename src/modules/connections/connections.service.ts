@@ -331,7 +331,7 @@ export class ConnectionsService {
     const interests = await prisma.interest.findMany({
       where: {
         fromUserId: requester?.userId,
-        status: { in: ['pending', 'accepted'] },
+        status: { in: ['pending'] },
       },
       include: {
         toUser: {
