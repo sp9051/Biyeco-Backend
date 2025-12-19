@@ -1,28 +1,20 @@
 import cors from 'cors';
 import { env } from '../config/env.js';
 
-const allowedOrigins = env.ALLOWED_ORIGINS || [];
+const allowedOrigins: string[] = env.ALLOWED_ORIGINS ?? [];
 
 export const corsMiddleware = cors({
   origin: (origin, callback) => {
-    /**
-     * ✅ Allow:
-     * - same-origin (no Origin header)
-     * - explicitly whitelisted origins
-     */
-    if (!origin) {
-      return callback(null, true);
-    }
+    // Allow server-to-server & same-origin
+    if (!origin) return callback(null, true);
 
+    // Allow whitelisted origins
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    /**
-     * ❌ Reject everything else
-     * (do NOT throw Error — just deny)
-     */
-    return callback(null, false);
+    // Explicitly block others
+    return callback(new Error('CORS not allowed'), false);
   },
 
   credentials: true,
@@ -38,5 +30,5 @@ export const corsMiddleware = cors({
 
   exposedHeaders: ['X-Request-Id'],
 
-  maxAge: 86400, // 24 hours
+  maxAge: 86400,
 });

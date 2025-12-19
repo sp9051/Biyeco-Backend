@@ -23,90 +23,63 @@ import paymentRoutes from './modules/payments/payment.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
 import adminAdminsRoutes from './modules/admin/admins/admin.routes.js';
 
-
 export function createApp() {
   const app = express();
 
-  /**
-   * =====================================================
-   * 1️⃣ REQUEST ID (safe first)
-   * =====================================================
-   */
+  /* Trust proxy (important for rate-limit & IPs) */
+  app.set('trust proxy', 1);
+
+  /* 1️⃣ Request ID */
   app.use(requestIdMiddleware);
 
-  /**
-   * =====================================================
-   * 2️⃣ CORS — MUST BE FIRST REAL MIDDLEWARE
-   * =====================================================
-   */
+  /* 2️⃣ CORS (FIRST) */
   app.use(corsMiddleware);
-  app.options('*', corsMiddleware); // ✅ allow preflight
 
-  /**
-   * =====================================================
-   * 3️⃣ SECURITY HEADERS
-   * =====================================================
-   */
+  app.options('*', corsMiddleware, (_req, res) => {
+    res.sendStatus(204);
+  });
+
+  /* 3️⃣ Security headers */
   app.use(helmetMiddleware);
 
-  /**
-   * =====================================================
-   * 4️⃣ REQUEST LOGGER
-   * =====================================================
-   */
+  /* 4️⃣ Request logger */
   app.use((req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
 
     res.on('finish', () => {
-      const duration = Date.now() - start;
       logRequest(
         req.requestId,
         req.method,
         req.originalUrl,
         res.statusCode,
-        duration
+        Date.now() - start
       );
     });
 
     next();
   });
 
-  /**
-   * =====================================================
-   * 5️⃣ BODY PARSERS
-   * =====================================================
-   */
+  /* 5️⃣ Body parsers */
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(cookieParser());
 
-  /**
-   * =====================================================
-   * 6️⃣ STATIC FILES
-   * =====================================================
-   */
+  /* 6️⃣ Static uploads (CORS SAFE) */
   app.use(
-  '/uploads',
-  express.static(path.join(process.cwd(), 'uploads'), {
+  "/uploads",
+  express.static(path.join(process.cwd(), "uploads"), {
     setHeaders: (res) => {
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     },
   })
 );
 
-  /**
-   * =====================================================
-   * 7️⃣ RATE LIMIT (AFTER CORS & OPTIONS)
-   * =====================================================
-   */
+  /* 7️⃣ Rate limiter */
   app.use(rateLimiter);
 
-  /**
-   * =====================================================
-   * 8️⃣ ROUTES
-   * =====================================================
-   */
+  /* 8️⃣ Routes */
   app.use('/api/health', healthRoute);
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/profiles', profileRoutes);
@@ -118,33 +91,18 @@ export function createApp() {
   app.use('/api/v1/connections', connectionsRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/payments', paymentRoutes);
-  // Admin core (auth, dashboard, etc.)
-app.use('/api/v1/admin', adminRoutes);
+  app.use('/api/v1/admin', adminRoutes);
+  app.use('/api/v1/admin/admins', adminAdminsRoutes);
 
-// Admin management (SUPER_ADMIN only)
-app.use('/api/v1/admin/admins', adminAdminsRoutes);
-
-
-  /**
-   * =====================================================
-   * 9️⃣ 404 HANDLER
-   * =====================================================
-   */
+  /* 9️⃣ 404 */
   app.use((_req: Request, res: Response) => {
     res.status(404).json({
       success: false,
-      error: {
-        message: 'Route not found',
-        code: 'NOT_FOUND',
-      },
+      error: { message: 'Route not found', code: 'NOT_FOUND' },
     });
   });
 
-  /**
-   * =====================================================
-   * 🔟 GLOBAL ERROR HANDLER (LAST)
-   * =====================================================
-   */
+  /* 🔟 Error handler */
   app.use(errorHandler);
 
   return app;

@@ -1,78 +1,64 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-interface PlanSeed {
-  code: string;
-  name: string;
-  price: number;
-  durationDays: number;
-  isInviteOnly: boolean;
-  category: string;
-}
-
-const plans: PlanSeed[] = [
+const plans = [
   {
-    code: 'ALAAP',
-    name: 'Alaap',
+    code: "ALAAP",
+    name: "Alaap",
     price: 999,
     durationDays: 30,
     isInviteOnly: false,
-    category: 'subscription',
+    category: "subscription",
+    features: {},
   },
   {
-    code: 'JATRA',
-    name: 'Jatra',
+    code: "JATRA",
+    name: "Jatra",
     price: 2999,
     durationDays: 30,
     isInviteOnly: false,
-    category: 'subscription',
+    category: "subscription",
+    features: {},
   },
   {
-    code: 'AALOK',
-    name: 'Aalok',
+    code: "AALOK",
+    name: "Aalok",
     price: 5999,
     durationDays: 30,
     isInviteOnly: false,
-    category: 'subscription',
+    category: "subscription",
+    features: {},
   },
   {
-    code: 'OBHIJAAT',
-    name: 'Obhijaat',
+    code: "OBHIJAAT",
+    name: "Obhijaat",
     price: 14999,
     durationDays: 30,
     isInviteOnly: true,
-    category: 'subscription',
+    category: "subscription",
+    features: {},
   },
 ];
 
-export async function seedPlans() {
-  console.log('🌱 Seeding plans...');
+async function seed() {
+  console.log("🌱 Seeding plans...");
 
   for (const plan of plans) {
     await prisma.plan.upsert({
       where: { code: plan.code },
-      update: {
-        ...plan,
-        features: {}, // ✅ REQUIRED
-      },
-      create: {
-        ...plan,
-        features: {}, // ✅ REQUIRED
-      },
+      update: plan,
+      create: plan,
     });
 
     console.log(`✅ ${plan.code} seeded`);
   }
 
-  console.log('🎉 Plan seeding complete');
+  await prisma.$disconnect();
+  console.log("🎉 Plan seeding complete");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  seedPlans()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
-}
+seed().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
