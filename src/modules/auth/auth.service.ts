@@ -1,4 +1,4 @@
-import { PrismaClient, Profile } from '@prisma/client';
+import { Profile } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import { verifyGoogleToken } from './google.service.js';
