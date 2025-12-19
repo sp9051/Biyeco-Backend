@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { ProfileData, RequesterContext } from './profile.types.js';
 import {
   CreateProfileDTO,
@@ -9,7 +8,7 @@ import { profilePermissions } from './profile.permissions.js';
 import { logger } from '../../utils/logger.js';
 import { generateRegisteredUserId } from '../../utils/profileId.generator.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class ProfileService {
   private async assertUserCanActOnProfile(

@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import {
   // PaymentStatus,
   PaymentGateway,
@@ -17,7 +16,7 @@ import { eventBus } from '../../events/eventBus.js';
 import { logger } from '../../utils/logger.js';
 import { currencyService } from './currency.service.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class PaymentService {
   async initiateCheckout(

@@ -1,10 +1,9 @@
-import { PrismaClient } from '@prisma/client';
 import { ModerationCallbackDTO } from './upload.dto.js';
 import { logger } from '../../utils/logger.js';
 import { env } from '../../config/env.js';
 import crypto from 'crypto';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class ModerationService {
   validateModerationSecret(providedSecret: string): boolean {

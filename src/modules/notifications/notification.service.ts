@@ -1,4 +1,4 @@
-import { PrismaClient, Notification, Prisma } from '@prisma/client';
+import { Notification, Prisma } from '@prisma/client';
 import { logger } from '../../utils/logger.js';
 import {
   NotificationPayload,
@@ -9,10 +9,11 @@ import {
 } from './notification.types.js';
 import { NotificationQueryDTO } from './notification.dto.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 class NotificationService {
   async createInAppNotification(payload: NotificationPayload): Promise<NotificationResponse> {
+    console.log("📝 DB INSERT ATTEMPT", payload);
     const notification = await prisma.notification.create({
       data: {
         userId: payload.userId,

@@ -11,7 +11,7 @@ import { logger } from '../../utils/logger.js';
 import { redis } from '../../config/redis.js';
 import { generateRegisteredUserId } from '../../utils/profileId.generator.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 const OTP_RATE_LIMIT_PREFIX = 'otp_rate_limit:';
 const OTP_RATE_LIMIT_MAX = 5;

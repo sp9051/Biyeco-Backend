@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { SendInterestDTO, AcceptInterestDTO, DeclineInterestDTO, WithdrawInterestDTO } from './connections.dto.js';
 import { ProfileData } from '../profile/profile.types.js';
 
@@ -8,7 +7,7 @@ import { eventBus } from '../../events/eventBus.js';
 import { profilePermissions } from '../profile/profile.permissions.js';
 
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class ConnectionsService {
   async sendInterest(fromUserId: string, dto: SendInterestDTO) {

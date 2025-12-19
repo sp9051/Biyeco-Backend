@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { logger } from '../../utils/logger.js';
 import { chatService } from './chat.service.js';
 import {
@@ -10,7 +9,7 @@ import {
 } from './chat.dto.js';
 import { sendSuccess, sendError } from '../../utils/response.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class ChatController {
   async getThreads(req: Request, res: Response): Promise<void> {

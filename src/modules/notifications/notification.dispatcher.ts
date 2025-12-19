@@ -27,6 +27,7 @@ class NotificationDispatcher {
 
   private setupEventListener(): void {
     eventBus.onNotification(async (event) => {
+      console.log("🎯 EVENT RECEIVED BY DISPATCHER", event);
       await this.handle(event);
     });
     logger.info('Notification dispatcher: event listener registered');
@@ -105,7 +106,12 @@ class NotificationDispatcher {
   }
 
   private async deliver(notification: QueuedNotification): Promise<void> {
+
     const { event } = notification;
+    console.log("🚚 DELIVER CALLED", {
+      userId: event.userId,
+      type: event.type
+    });
     const priority = (event.priority || 'LOW') as NotificationPriority;
     const config = PRIORITY_CONFIG[priority];
 

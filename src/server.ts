@@ -1,6 +1,8 @@
 import { httpServer } from './index.js';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
+import './modules/notifications/notification.dispatcher.js';
+
 
 const PORT = env.PORT;
 

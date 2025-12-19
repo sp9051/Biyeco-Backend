@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { logger } from '../../utils/logger.js';
 import { sanitizeMessage } from '../../utils/sanitizer.js';
 import { profanityService } from './profanity.service.js';
@@ -11,7 +10,7 @@ import {
 } from './chat.types.js';
 import { eventBus } from '../../events/eventBus.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class ChatService {
   private io: ChatServer | null = null;
@@ -95,6 +94,10 @@ export class ChatService {
 
     let user = await prisma.user.findUnique({ where: { id: fromUserId } });
     // Emit notification
+    console.log("🔥 EVENT EMITTED", {
+      userId: toUserId,
+      type: "new_message"
+    });
     eventBus.emitNotification({
       userId: toUserId,
       type: "new_message",

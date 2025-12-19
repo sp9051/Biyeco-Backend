@@ -1,9 +1,8 @@
 // src/services/currency.service.ts
-import { PrismaClient } from '@prisma/client';
 import { logger } from '../../utils/logger.js';
 import axios from 'axios';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export interface CountryDetectionResult {
     countryCode: string;

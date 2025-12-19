@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { SearchRequestDTO } from '../discovery/search.dto.js';
 import { validateQueryCost } from '../../utils/queryCostGuard.js';
 import { decodeCursor, createPaginationResult } from '../../utils/pagination.js';
@@ -6,7 +5,7 @@ import { profilePermissions } from '../profile/profile.permissions.js';
 import { cacheService } from '../../utils/cache.service.js';
 import { logger } from '../../utils/logger.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class SearchService {
   async search(userId: string, dto: SearchRequestDTO) {

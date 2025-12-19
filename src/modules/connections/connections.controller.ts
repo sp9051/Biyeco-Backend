@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { connectionsService } from './connections.service.js';
 import {
   SendInterestDTO,
@@ -11,7 +10,7 @@ import { idempotencyService } from './idempotency.service.js';
 import { sendSuccess } from '../../utils/response.js';
 import { logger } from '../../utils/logger.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class ConnectionsController {
   async sendInterest(req: Request, res: Response, next: NextFunction) {

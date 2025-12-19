@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { CreateUploadUrlDTO } from './upload.dto.js';
 import { s3Service } from './s3.service.js';
@@ -7,7 +6,7 @@ import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 import { localStorageService } from './local/local.storage.service.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export interface UploadUrlResponse {
   uploadUrl: string;

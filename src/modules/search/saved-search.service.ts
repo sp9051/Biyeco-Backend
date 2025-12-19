@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import { SaveSearchDTO } from '../discovery/search.dto.js';
 import { logger } from '../../utils/logger.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class SavedSearchService {
   async saveSearch(userId: string, dto: SaveSearchDTO) {

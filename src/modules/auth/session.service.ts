@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import { SessionInfo } from './auth.types.js';
 import { logger } from '../../utils/logger.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class SessionService {
   async createSession(userId: string, sessionInfo: SessionInfo): Promise<string> {

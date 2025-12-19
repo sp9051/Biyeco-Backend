@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import { PlanResponse, PlanFeatures } from './payment.types.js';
 import { logger } from '../../utils/logger.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 export class PlanService {
   async getAllPlans(

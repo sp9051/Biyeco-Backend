@@ -1,7 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import { PlanFeatures } from './payment.types.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 interface PlanSeed {
   code: string;

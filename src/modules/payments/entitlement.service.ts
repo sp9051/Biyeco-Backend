@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
 import { EntitlementAction, EntitlementContext, PlanFeatures, MessagingLimits } from './payment.types.js';
 import { logger } from '../../utils/logger.js';
 import { redis } from '../../config/redis.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 const ICEBREAKER_COUNT_PREFIX = 'icebreaker_count:';
 const PARENT_ICEBREAKER_COUNT_PREFIX = 'parent_icebreaker_count:';

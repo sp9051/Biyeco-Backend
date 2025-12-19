@@ -5,7 +5,7 @@ import { logger } from '../../utils/logger.js';
 
 // import { profile } from 'console';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 // function decimalToNumber(value: Prisma.Decimal | null | undefined): number | undefined {
 //   return value ? value.toNumber() : undefined;
 // }

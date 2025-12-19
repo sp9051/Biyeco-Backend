@@ -1,9 +1,9 @@
-import { PrismaClient, NotificationPreference } from '@prisma/client';
+import { NotificationPreference } from '@prisma/client';
 import { logger } from '../../utils/logger.js';
 import { NotificationPreferenceResponse } from './notification.types.js';
 import { UpdatePreferencesDTO } from './notification.dto.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../prisma.js';
 
 class NotificationPreferenceService {
   async getPreferences(userId: string): Promise<NotificationPreferenceResponse> {
