@@ -10,7 +10,7 @@ import { logger } from '../../utils/logger.js';
 export class PaymentController {
   async getPlans(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const includeInvite = req.query.includeInvite === 'true';
+      const includeInvite = req.query.includeInvite === 'false';
       const plans = await planService.getAllPlans(includeInvite);
 
       res.json(sendSuccess(res, plans, 'Plans retrieved successfully', 200));
