@@ -139,6 +139,7 @@ export const SearchAdvancedSchema = z.object({
 export const SearchRequestSchema = z.object({
   basic: SearchBasicSchema.optional(),
   advanced: SearchAdvancedSchema.optional(),
+  keyword: z.string().optional(),
   limit: z.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
 });

@@ -11,24 +11,64 @@ import {
 import { eventBus } from '../../events/eventBus.js';
 
 import { prisma } from '../../prisma.js';
+// import { AIModerationService } from './aiModerationService.js';
+
 
 export class ChatService {
   private io: ChatServer | null = null;
+
 
   setSocketServer(io: ChatServer): void {
     this.io = io;
   }
 
   async saveMessage(params: SaveMessageParams): Promise<MessageResponse> {
+    console.log("hello::::: /n\n")
+    // const aiModerator = new AIModerationService(process.env.OPENAI_API_KEY!);
+
     const { threadId, fromUserId, toUserId, content, metadata = {} } = params;
 
     const sanitizedContent = sanitizeMessage(content);
+    let finalContent = sanitizedContent;
 
-    const isContentClean = profanityService.isClean(sanitizedContent);
+
+    // const moderationResult = await aiModerator.moderateContent(sanitizedContent);
+    // console.log(moderationResult)
+
+    // if (moderationResult.isFlagged) {
+    //   metadata.moderation = 'flagged';
+    //   metadata.reason = moderationResult.categoryFlags.join(', '); // e.g., 'harassment, hate'
+    //   metadata.moderationScores = moderationResult.categoryScores;
+
+    //   finalContent = profanityService.filter(sanitizedContent);
+
+
+    //   logger.warn(`Message from ${fromUserId} flagged by AI`, {
+    //     categories: moderationResult.categoryFlags,
+    //     scores: moderationResult.categoryScores
+    //   });
+    // }
+
+
+    const isContentClean = profanityService.isClean(finalContent);
+
     if (!isContentClean) {
       metadata.moderation = 'flagged';
-      logger.warn(`Message from ${fromUserId} flagged for profanity`);
+      metadata.reason = 'profanity'; // Mark the reason as profanity
+
+      // Replace profane words with the default '***'
+      finalContent = profanityService.filter(finalContent);
     }
+    // if (!isContentClean) {
+    //   metadata.moderation = 'flagged';
+    //   metadata.reason = 'profanity';
+
+    //   // 🔥 Filter instead of blocking
+    //   finalContent = profanityService.filter(sanitizedContent);
+
+    //   logger.warn(`Message from ${fromUserId} contained profanity`);
+    //   // return
+    // }
 
     let thread;
     if (threadId) {
@@ -54,7 +94,7 @@ export class ChatService {
         threadId: thread.id,
         fromUserId,
         toUserId,
-        content: sanitizedContent,
+        content: finalContent,
         metadata,
         delivered: isRecipientOnline,
       },
@@ -111,6 +151,7 @@ export class ChatService {
     return messageResponse;
   }
 
+
   async findOrCreateThread(participants: string[]): Promise<any> {
     const sortedParticipants = [...participants].sort();
 
@@ -138,13 +179,13 @@ export class ChatService {
   }
 
   async createThread(params: CreateThreadParams): Promise<any> {
-    const { participants } = params;
+    const { participants, effectiveUserId } = params;
 
     if (participants.length < 2) {
       throw new Error('Thread must have at least 2 participants');
     }
 
-    const canCreate = await this.canCreateThread(participants[0], participants[1]);
+    const canCreate = await this.canCreateThread(participants[0], effectiveUserId);
     if (!canCreate) {
       throw new Error('Users not allowed to chat. Mutual match required.');
     }

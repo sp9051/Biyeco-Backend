@@ -31,7 +31,8 @@ export class ChatController {
       });
 
       const result = await chatService.getThreads(
-        effectiveUserId,
+        // effectiveUserId,
+        userId,
         query.cursor,
         query.limit
       );
@@ -62,7 +63,7 @@ export class ChatController {
         requestId: req.requestId,
       });
 
-      const thread = await chatService.getThread(threadId, effectiveUserId);
+      const thread = await chatService.getThread(threadId, userId);
 
       sendSuccess(res, thread, 'Thread retrieved successfully');
     } catch (error: any) {
@@ -92,8 +93,8 @@ export class ChatController {
       console.log(input.participantIds)
 
 
-      if (!input.participantIds.includes(effectiveUserId)) {
-        input.participantIds.push(effectiveUserId);
+      if (!input.participantIds.includes(userId)) {
+        input.participantIds.push(userId);
       }
       console.log(input.participantIds)
 
@@ -106,6 +107,7 @@ export class ChatController {
 
       const thread = await chatService.createThread({
         participants: input.participantIds,
+        effectiveUserId: effectiveUserId,
       });
 
       sendSuccess(res, thread, 'Thread created successfully', 201);
@@ -143,7 +145,8 @@ export class ChatController {
 
       const result = await chatService.getMessages(
         threadId,
-        effectiveUserId,
+        // effectiveUserId,
+        userId,
         query.cursor,
         query.limit
       );
@@ -182,7 +185,10 @@ export class ChatController {
         requestId: req.requestId,
       });
 
-      await chatService.markAsRead(threadId, effectiveUserId, input.uptoMessageId);
+      await chatService.markAsRead(threadId, userId,
+        // effectiveUserId,
+        input.uptoMessageId
+      );
 
       sendSuccess(res, { success: true }, 'Messages marked as read');
     } catch (error: any) {

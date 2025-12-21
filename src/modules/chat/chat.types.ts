@@ -75,6 +75,8 @@ export interface SaveMessageParams {
 
 export interface CreateThreadParams {
   participants: string[];
+  effectiveUserId: string;
+
 }
 
 export interface ChatEvents {
@@ -88,7 +90,7 @@ export interface ChatEvents {
   pong: () => void;
 }
 
-export interface ServerToClientEvents extends ChatEvents {}
-export interface ClientToServerEvents extends ChatEvents {}
+export interface ServerToClientEvents extends ChatEvents { }
+export interface ClientToServerEvents extends ChatEvents { }
 
 export type ChatServer = Server<ClientToServerEvents, ServerToClientEvents>;

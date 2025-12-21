@@ -468,6 +468,17 @@ export class SearchService {
       // prefLocation could be mapped similarly to location, if needed, depending on how you want to use it.
     }
 
+    // ----------------------------
+    // 🔍 KEYWORD SEARCH
+    // ----------------------------
+    if (dto.keyword) {
+      const keywordClause = this.buildKeywordSearch(dto.keyword);
+      if (keywordClause) {
+        and.push(keywordClause);
+      }
+    }
+
+
     // Attach AND conditions if any
     if (and.length > 0) {
       where.AND = and;
@@ -475,6 +486,72 @@ export class SearchService {
 
     return where;
   }
+
+
+  private buildKeywordSearch(keyword: string): any {
+
+    const KEYWORD_TEXT_FIELDS = [
+      'profession',
+      'highestEducation',
+      'fieldOfStudy',
+      'religion',
+      'ancestralHome',
+      'division',
+    ];
+    const KEYWORD_ARRAY_FIELDS = [
+      'languagesKnown',
+      'hobbies',
+    ];
+    if (!keyword || !keyword.trim()) return null;
+
+    const words = keyword.trim().split(/\s+/);
+
+    return {
+      OR: [
+        // Text columns
+        ...KEYWORD_TEXT_FIELDS.flatMap(field =>
+          words.map(word => ({
+            [field]: {
+              contains: word,
+              mode: 'insensitive',
+            },
+          }))
+        ),
+
+        // Array columns
+        ...KEYWORD_ARRAY_FIELDS.flatMap(field =>
+          words.map(word => ({
+            [field]: {
+              has: word,
+            },
+          }))
+        ),
+
+        // JSON location search
+        ...words.flatMap(word => [
+          {
+            location: {
+              path: ['city'],
+              string_contains: word,
+            },
+          },
+          {
+            location: {
+              path: ['state'],
+              string_contains: word,
+            },
+          },
+          {
+            location: {
+              path: ['country'],
+              string_contains: word,
+            },
+          },
+        ]),
+      ],
+    };
+  }
+
 
 
   private getDateFromAge(age: number): Date {

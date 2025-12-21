@@ -212,7 +212,14 @@ export class RecommendationService {
     const ranked = await this.applyAdvancedRanking(userProfile, profiles);
     console.log(ranked);
 
-    return ranked;
+    const enrichedRecommendations = await this.attachInterestStatus(
+      effectiveUserId,
+      ranked
+    );
+
+    console.log(enrichedRecommendations);
+
+    return enrichedRecommendations;
   }
 
 
@@ -223,6 +230,12 @@ export class RecommendationService {
   ) {
     const effectiveUserId = await this.resolveCandidateUserId(userId);
 
+    // Fetch user + profile
+    const user = await prisma.user.findUnique({
+      where: { id: effectiveUserId },
+      select: { lookingFor: true }
+    });
+
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
@@ -232,6 +245,13 @@ export class RecommendationService {
       userId: { not: effectiveUserId },
       // createdAt: { gte: startOfToday },
     };
+    const requiredGender =
+      user?.lookingFor === "bride" ? "female" :
+        user?.lookingFor === "groom" ? "male" :
+          undefined;
+
+
+    if (requiredGender) baseQuery.gender = requiredGender;
 
     if (cursor) {
       baseQuery.OR = [
@@ -268,7 +288,14 @@ export class RecommendationService {
       date: startOfToday.toISOString(),
     });
 
-    return profiles;
+    const enrichedProfiles = await this.attachInterestStatus(
+      effectiveUserId,
+      profiles
+    );
+
+    console.log(enrichedProfiles)
+
+    return enrichedProfiles;
   }
 
   async getNearbyProfiles(
@@ -293,6 +320,11 @@ export class RecommendationService {
       return [];
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: effectiveUserId },
+      select: { lookingFor: true }
+    });
+
     const baseQuery: any = {
       published: true,
       deletedAt: null,
@@ -310,6 +342,13 @@ export class RecommendationService {
         },
       ];
     }
+
+    const requiredGender =
+      user?.lookingFor === "bride" ? "female" :
+        user?.lookingFor === "groom" ? "male" :
+          undefined;
+
+    if (requiredGender) baseQuery.gender = requiredGender;
 
     const profiles = await prisma.profile.findMany({
       where: baseQuery,
@@ -337,7 +376,14 @@ export class RecommendationService {
       count: nearbyProfiles.length,
     });
 
-    return nearbyProfiles;
+    const enrichedNearbyProfiles = await this.attachInterestStatus(
+      effectiveUserId,
+      nearbyProfiles
+    );
+
+    console.log(enrichedNearbyProfiles);
+
+    return enrichedNearbyProfiles;
   }
 
   private async applyAdvancedRanking(user: Profile, profiles: Profile[]) {
@@ -518,6 +564,63 @@ export class RecommendationService {
 
     // If you add guardian or other roles later, extend this logic here.
     return userId;
+  }
+
+  private async attachInterestStatus(
+    requesterUserId: string,
+    profiles: any[]
+  ) {
+    if (!profiles.length) return profiles;
+
+    // Fetch all interests involving the requester
+    const interests = await prisma.interest.findMany({
+      where: {
+        OR: [
+          { fromUserId: requesterUserId },
+          { toUserId: requesterUserId },
+        ],
+      },
+      select: {
+        fromUserId: true,
+        toUserId: true,
+        status: true,
+        updatedAt: true,
+      },
+    });
+
+    // Build lookup map: otherUserId -> interest info
+    const interestMap = new Map<
+      string,
+      { status: string; direction: 'sent' | 'received' }
+    >();
+
+    for (const interest of interests) {
+      const otherUserId =
+        interest.fromUserId === requesterUserId
+          ? interest.toUserId
+          : interest.fromUserId;
+
+      interestMap.set(otherUserId, {
+        status: interest.status,
+        direction:
+          interest.fromUserId === requesterUserId ? 'sent' : 'received',
+      });
+    }
+
+    // Attach interest info to profiles
+    return profiles.map((profile: any) => {
+      const interest = interestMap.get(profile.userId);
+
+      return {
+        ...profile,
+        interest: interest
+          ? {
+            status: interest.status,       // pending | accepted | declined | withdrawn
+            direction: interest.direction, // sent | received
+          }
+          : null,
+      };
+    });
   }
 }
 

@@ -49,6 +49,8 @@ export class ConnectionsService {
       },
     });
 
+    console.log(existingInterest);
+
     if (existingInterest) {
       if (existingInterest.status === 'pending') {
         logger.info('Interest already exists with pending status', {
@@ -85,6 +87,7 @@ export class ConnectionsService {
       }
 
       if (existingInterest.status === 'accepted') {
+        console.log("accepted: Interest Already accepted")
         throw new Error('Interest already accepted');
       }
     }
@@ -157,6 +160,15 @@ export class ConnectionsService {
         },
       },
     });
+    let updatedReverse;
+    if (reverseInterest) {
+      updatedReverse = await prisma.interest.update({
+        where: { id: reverseInterest.id },
+        data: { status: 'accepted', updatedAt: new Date() },
+      });
+    }
+
+
 
     const isMatch = reverseInterest?.status === 'accepted';
 
@@ -169,6 +181,7 @@ export class ConnectionsService {
 
     return {
       id: updated.id,
+      reverseId: updatedReverse?.id,
       status: 'accepted',
       isMatch,
       updatedAt: updated.updatedAt,
@@ -330,7 +343,7 @@ export class ConnectionsService {
     const interests = await prisma.interest.findMany({
       where: {
         fromUserId: requester?.userId,
-        status: { in: ['pending'] },
+        status: { in: ['pending', 'accepted'] },
       },
       include: {
         toUser: {
@@ -351,7 +364,7 @@ export class ConnectionsService {
     });
 
     // console.log(interests[0].toUser.profile)
-    // console.log(interests)
+    console.log(interests)
     // console.log(userId)
 
 
@@ -519,6 +532,9 @@ export class ConnectionsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    console.log("interestsstart")
+    console.log(interests)
+    console.log("interestsend")
 
     return Promise.all(
       interests.map(async (interest: any) => ({
@@ -618,14 +634,122 @@ export class ConnectionsService {
 
   //   return matches;
   // }
+  // async getMatches(requester: { userId: string }) {
+  //   // 2️⃣ Find interests SENT by candidate and accepted
+  //   const sentAccepted = await prisma.interest.findMany({
+  //     where: {
+  //       fromUserId: requester.userId,
+  //       status: 'accepted',
+  //     },
+  //     include: {
+  //       toUser: {
+  //         select: {
+  //           id: true,
+  //           email: true,
+  //           createdAt: true,
+  //           profile: {
+  //             include: {
+  //               photos: true,
+  //             },
+  //           },
+  //         },
+  //       },
+  //     },
+  //   });
+
+
+  //   const matches = [];
+  //   console.log(sentAccepted)
+
+  //   for (const sent of sentAccepted) {
+  //     // 4️⃣ Find reverse MATCH: the other user also accepted
+  //     const reverseMatch = await prisma.interest.findFirst({
+  //       where: {
+  //         OR: [
+  //           {
+  //             fromUserId: sent.toUserId,
+  //             toUserId: requester.userId,
+  //           },
+  //           {
+  //             fromUserId: requester.userId,
+  //             toUserId: sent.toUserId,
+  //           }
+  //         ]
+  //       },
+  //       include: {
+  //         fromUser: {
+  //           select: {
+  //             id: true,
+  //             email: true,
+  //             createdAt: true,
+  //             profile: {
+  //               include: {
+  //                 photos: true,
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+  //     });
+  //     console.log(reverseMatch)
+
+  //     // 5️⃣ Only count when BOTH sides accepted
+  //     if (reverseMatch?.status === 'accepted') {
+  //       const matchedUser = sent.toUser;
+
+  //       // Map Prisma profile → ProfileData
+  //       const profileData = matchedUser?.profile
+  //         ? this.mapProfile(matchedUser.profile)
+  //         : null;
+
+  //       // Mask profile based on permissions
+  //       const matchedProfile = profileData
+  //         ? await profilePermissions.maskProfile(profileData, requester)
+  //         : null;
+
+  //       matches.push({
+  //         matchedUserId: sent.toUserId,
+  //         matchedUser,
+  //         matchedUserProfile: matchedProfile,
+  //         matchedAt:
+  //           sent.updatedAt > reverseMatch.updatedAt
+  //             ? sent.updatedAt
+  //             : reverseMatch.updatedAt,
+  //       });
+  //     }
+  //   }
+
+  //   logger.info('Matches retrieved', {
+  //     userId: requester.userId,
+  //     resolvedCandidateId: requester.userId,
+  //     matchCount: matches.length,
+  //   });
+
+  //   return matches;
+  // }
   async getMatches(requester: { userId: string }) {
-    // 2️⃣ Find interests SENT by candidate and accepted
+    // 2️⃣ Find interests ACCEPTED where requester is sender OR receiver
     const sentAccepted = await prisma.interest.findMany({
       where: {
-        fromUserId: requester.userId,
         status: 'accepted',
+        OR: [
+          { fromUserId: requester.userId },
+          { toUserId: requester.userId },
+        ],
       },
       include: {
+        fromUser: {
+          select: {
+            id: true,
+            email: true,
+            createdAt: true,
+            profile: {
+              include: {
+                photos: true,
+              },
+            },
+          },
+        },
         toUser: {
           select: {
             id: true,
@@ -642,64 +766,31 @@ export class ConnectionsService {
     });
 
     const matches = [];
-    console.log(sentAccepted)
+    console.log(sentAccepted);
 
     for (const sent of sentAccepted) {
-      // 4️⃣ Find reverse MATCH: the other user also accepted
-      const reverseMatch = await prisma.interest.findFirst({
-        where: {
-          OR: [
-            {
-              fromUserId: sent.toUserId,
-              toUserId: requester.userId,
-            },
-            {
-              fromUserId: requester.userId,
-              toUserId: sent.toUserId,
-            }
-          ]
-        },
-        include: {
-          fromUser: {
-            select: {
-              id: true,
-              email: true,
-              createdAt: true,
-              profile: {
-                include: {
-                  photos: true,
-                },
-              },
-            },
-          },
-        },
+      // Determine the other user (sender or receiver)
+      const matchedUser =
+        sent.fromUserId === requester.userId
+          ? sent.toUser
+          : sent.fromUser;
+
+      // Map Prisma profile → ProfileData
+      const profileData = matchedUser?.profile
+        ? this.mapProfile(matchedUser.profile)
+        : null;
+
+      // Mask profile based on permissions
+      const matchedProfile = profileData
+        ? await profilePermissions.maskProfile(profileData, requester)
+        : null;
+
+      matches.push({
+        matchedUserId: matchedUser.id,
+        matchedUser,
+        matchedUserProfile: matchedProfile,
+        matchedAt: sent.updatedAt,
       });
-      console.log(reverseMatch)
-
-      // 5️⃣ Only count when BOTH sides accepted
-      if (reverseMatch?.status === 'accepted') {
-        const matchedUser = sent.toUser;
-
-        // Map Prisma profile → ProfileData
-        const profileData = matchedUser?.profile
-          ? this.mapProfile(matchedUser.profile)
-          : null;
-
-        // Mask profile based on permissions
-        const matchedProfile = profileData
-          ? await profilePermissions.maskProfile(profileData, requester)
-          : null;
-
-        matches.push({
-          matchedUserId: sent.toUserId,
-          matchedUser,
-          matchedUserProfile: matchedProfile,
-          matchedAt:
-            sent.updatedAt > reverseMatch.updatedAt
-              ? sent.updatedAt
-              : reverseMatch.updatedAt,
-        });
-      }
     }
 
     logger.info('Matches retrieved', {
@@ -710,6 +801,7 @@ export class ConnectionsService {
 
     return matches;
   }
+
 
 
   private mapProfile(db: any): ProfileData {
