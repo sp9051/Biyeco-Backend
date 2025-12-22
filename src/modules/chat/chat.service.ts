@@ -1,6 +1,8 @@
 import { logger } from '../../utils/logger.js';
 import { sanitizeMessage } from '../../utils/sanitizer.js';
 import { profanityService } from './profanity.service.js';
+import { profilePermissions } from '../profile/profile.permissions.js';
+
 import {
   SaveMessageParams,
   CreateThreadParams,
@@ -11,6 +13,7 @@ import {
 import { eventBus } from '../../events/eventBus.js';
 
 import { prisma } from '../../prisma.js';
+import { ThreadParticipantResolver } from './threadParticipant.resolver.js';
 // import { AIModerationService } from './aiModerationService.js';
 
 
@@ -233,26 +236,81 @@ export class ChatService {
     const hasMore = threads.length > limit;
     const items = hasMore ? threads.slice(0, -1) : threads;
 
-    const threadsWithPreview: ThreadWithPreview[] = items.map((thread: any) => ({
-      id: thread.id,
-      participants: thread.participants,
-      lastMsgAt: thread.lastMsgAt,
-      lastMessage: thread.messages[0]
-        ? {
-          id: thread.messages[0].id,
-          content: thread.messages[0].content,
-          fromUserId: thread.messages[0].fromUserId,
-          createdAt: thread.messages[0].createdAt,
+    const otherUserIds = items.map(thread =>
+      thread.participants.find(id => id !== userId)!
+    );
+
+    const profileMap =
+      await ThreadParticipantResolver.resolveProfilesByUserIds(otherUserIds);
+
+    const maskedProfileMap = new Map<string, any>();
+
+    await Promise.all(
+      Array.from(profileMap.entries()).map(async ([userIdKey, profile]) => {
+        if (!profile) {
+          maskedProfileMap.set(userIdKey, null);
+          return;
         }
-        : undefined,
-      createdAt: thread.createdAt,
-      updatedAt: thread.updatedAt,
-    }));
+
+        const masked = await profilePermissions.maskProfile(profile, { userId });
+        maskedProfileMap.set(userIdKey, masked);
+      })
+    );
+
+    // const threadsWithPreview: ThreadWithPreview[] = items.map((thread: any) => {
+    //   const otherUserId = thread.participants.find((id: any) => id !== userId)!;
+    //   const maskedProfiles = await Promise.all(
+    //         profileMap.get(otherUserId).map((profile: any) =>
+    //           profilePermissions.maskProfile(profile as any, { userId })
+    //         )
+    //       );
+    //   return {
+    //     id: thread.id,
+    //     participants: thread.participants,
+    //     lastMsgAt: thread.lastMsgAt,
+    //     lastMessage: thread.messages[0]
+    //       ? {
+    //         id: thread.messages[0].id,
+    //         content: thread.messages[0].content,
+    //         fromUserId: thread.messages[0].fromUserId,
+    //         createdAt: thread.messages[0].createdAt,
+    //       }
+    //       : undefined,
+    //     profile: profileMap.get(otherUserId) ?? null,
+    //     createdAt: thread.createdAt,
+    //     updatedAt: thread.updatedAt,
+    //   }
+    // });
+
+    const threadsWithPreview: ThreadWithPreview[] = items.map((thread: any) => {
+      const otherUserId = thread.participants.find(
+        (id: any) => id !== userId
+      )!;
+
+      return {
+        id: thread.id,
+        participants: thread.participants,
+        lastMsgAt: thread.lastMsgAt,
+        lastMessage: thread.messages[0]
+          ? {
+            id: thread.messages[0].id,
+            content: thread.messages[0].content,
+            fromUserId: thread.messages[0].fromUserId,
+            createdAt: thread.messages[0].createdAt,
+          }
+          : undefined,
+        profile: maskedProfileMap.get(otherUserId) ?? null,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+      };
+    });
 
     const nextCursor =
       hasMore && items.length > 0
         ? `${items[items.length - 1].lastMsgAt?.toISOString()}_${items[items.length - 1].id}`
         : null;
+
+    console.log(threadsWithPreview)
 
     return {
       threads: threadsWithPreview,
@@ -272,8 +330,24 @@ export class ChatService {
     if (!thread.participants.includes(userId)) {
       throw new Error('User not a participant in this thread');
     }
+    const otherUserId = thread.participants.find(id => id !== userId)!;
 
-    return thread;
+    const profileMap =
+      await ThreadParticipantResolver.resolveProfilesByUserIds([otherUserId]);
+
+    const rawProfile = profileMap.get(otherUserId);
+
+    // 2️⃣ Mask profile (single call)
+    const maskedProfile = rawProfile
+      ? await profilePermissions.maskProfile(rawProfile, { userId })
+      : null;
+
+    // console.log(maskedProfile);
+
+    return {
+      ...thread,
+      profile: maskedProfile,
+    };
   }
 
   async getMessages(
@@ -303,7 +377,7 @@ export class ChatService {
 
     const messages = await prisma.message.findMany({
       where: whereClause,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ createdAt: 'asc' }],
       take: limit + 1,
     });
 

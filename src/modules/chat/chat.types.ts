@@ -47,6 +47,7 @@ export interface ThreadWithPreview {
     fromUserId: string;
     createdAt: Date;
   };
+  profile: any,
   createdAt: Date;
   updatedAt: Date;
 }

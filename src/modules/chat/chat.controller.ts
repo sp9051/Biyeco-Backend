@@ -64,6 +64,7 @@ export class ChatController {
       });
 
       const thread = await chatService.getThread(threadId, userId);
+      console.log(thread)
 
       sendSuccess(res, thread, 'Thread retrieved successfully');
     } catch (error: any) {
