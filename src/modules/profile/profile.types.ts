@@ -23,6 +23,10 @@ export interface ProfileData {
   id: string;
   userId: string;
   registeredUserId: string;
+  interest?: {
+    status: string;
+    direction: 'sent' | 'received';
+  } | null;
 
   // Basic Info
   displayName?: string;
@@ -131,6 +135,12 @@ export interface MaskedProfile {
   id: string;
   userId: string;
   registeredUserId: string;
+
+  interest?: {
+    status: string;
+    direction: 'sent' | 'received';
+  } | null;
+
 
   // Basic Info
   displayName?: string;

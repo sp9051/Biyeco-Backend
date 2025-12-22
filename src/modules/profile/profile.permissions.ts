@@ -75,12 +75,16 @@ export class ProfilePermissions {
 
     const age = profile.dob ? this.calculateAge(profile.dob) : undefined;
 
+    // ⬇️ PRESERVE INTEREST
+    const interest = profile.interest ?? null;
+
     // Base masked profile with mandatory fields
     const maskedProfile: MaskedProfile = {
       id: profile.id,
       userId: profile.userId,
       registeredUserId: profile.registeredUserId,
       displayName: profile.displayName || '',
+      interest, // ✅ always included
     };
 
     //

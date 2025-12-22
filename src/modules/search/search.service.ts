@@ -53,8 +53,15 @@ export class SearchService {
     console.log(profiles)
 
 
+    const effectiveUserId = await this.resolveCandidateUserId(userId);
+
+    const enrichedRecommendations = await this.attachInterestStatus(
+      effectiveUserId,
+      profiles
+    );
+
     const maskedProfiles = await Promise.all(
-      profiles.map((profile: any) =>
+      enrichedRecommendations.map((profile: any) =>
         profilePermissions.maskProfile(profile as any, { userId })
       )
     );
@@ -631,6 +638,63 @@ export class SearchService {
 
     // If you add guardian or other roles later, extend this logic here.
     return userId;
+  }
+
+  private async attachInterestStatus(
+    requesterUserId: string,
+    profiles: any[]
+  ) {
+    if (!profiles.length) return profiles;
+
+    // Fetch all interests involving the requester
+    const interests = await prisma.interest.findMany({
+      where: {
+        OR: [
+          { fromUserId: requesterUserId },
+          { toUserId: requesterUserId },
+        ],
+      },
+      select: {
+        fromUserId: true,
+        toUserId: true,
+        status: true,
+        updatedAt: true,
+      },
+    });
+
+    // Build lookup map: otherUserId -> interest info
+    const interestMap = new Map<
+      string,
+      { status: string; direction: 'sent' | 'received' }
+    >();
+
+    for (const interest of interests) {
+      const otherUserId =
+        interest.fromUserId === requesterUserId
+          ? interest.toUserId
+          : interest.fromUserId;
+
+      interestMap.set(otherUserId, {
+        status: interest.status,
+        direction:
+          interest.fromUserId === requesterUserId ? 'sent' : 'received',
+      });
+    }
+
+    // Attach interest info to profiles
+    return profiles.map((profile: any) => {
+      const interest = interestMap.get(profile.userId);
+
+      return {
+        ...profile,
+        interest: interest
+          ? {
+            status: interest.status,       // pending | accepted | declined | withdrawn
+            direction: interest.direction, // sent | received
+          }
+          : null,
+      };
+    });
   }
 
 }
