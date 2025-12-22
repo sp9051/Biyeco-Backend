@@ -95,6 +95,8 @@ export function createApp() {
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/payments', paymentRoutes);
   app.use('/api/v1/chats', chatRoutes);
+  app.use('/api/v1/payments/callback', paymentRoutes);
+  app.use('/api/v1/payments/webhooks', paymentRoutes);
   // app.use('/uploads', express.static(path.resolve('uploads')));
 
   app.use((_req: Request, res: Response) => {

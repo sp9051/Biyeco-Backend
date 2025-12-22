@@ -37,6 +37,24 @@ export class PaymentController {
     }
   }
 
+  // async checkout(req: Request, res: Response, next: NextFunction): Promise<void> {
+  //   try {
+  //     const userId = req.userId!;
+  //     const dto: CheckoutDTO = req.body;
+
+  //     const requestIp = this.extractClientIp(req);
+  //     // console.log(req)
+  //     console.log(requestIp)
+
+
+  //     const result = await paymentService.initiateCheckout(dto, userId, requestIp);
+
+  //     res.json(sendSuccess(res, result, 'Checkout initiated successfully', 200));
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // }
+
   async checkout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.userId!;
@@ -46,26 +64,58 @@ export class PaymentController {
 
       const result = await paymentService.initiateCheckout(dto, userId, requestIp);
 
-      res.json(sendSuccess(res, result, 'Checkout initiated successfully', 200));
+      if (res.headersSent) return;
+
+      res.status(200).json(
+        sendSuccess(res, result, 'Checkout initiated successfully', 200)
+      );
     } catch (error) {
-      next(error);
+      if (!res.headersSent) {
+        next(error);
+      }
     }
   }
 
+  // private extractClientIp(req: Request): string {
+  //   // Get IP from various headers (for proxy/load balancer setups)
+  //   const forwarded = req.headers['x-forwarded-for'];
+  //   if (forwarded) {
+  //     console.log("forwarded: TRUE")
+  //     return Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+  //   }
+  //   // console.log("Req Ip: " + req.ip)
+
+
+  //   // Get from socket
+  //   const socketIp = req.socket?.remoteAddress;
+  //   // console.log("socketIp: " + socketIp)
+
+  //   if (socketIp) {
+  //     return socketIp;
+  //   }
+
+  //   // Fallback
+  //   // console.log("Req Ip: " + req.ip)
+
+  //   return req.ip || '127.0.0.1';
+  // }
+
+
   private extractClientIp(req: Request): string {
-    // Get IP from various headers (for proxy/load balancer setups)
     const forwarded = req.headers['x-forwarded-for'];
-    if (forwarded) {
-      return Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+
+    if (typeof forwarded === 'string') {
+      return forwarded.split(',')[0].trim();
     }
 
-    // Get from socket
-    const socketIp = req.socket?.remoteAddress;
-    if (socketIp) {
-      return socketIp;
+    if (Array.isArray(forwarded)) {
+      return forwarded[0];
     }
 
-    // Fallback
+    if (req.socket?.remoteAddress) {
+      return req.socket.remoteAddress;
+    }
+
     return req.ip || '127.0.0.1';
   }
 
@@ -196,34 +246,75 @@ export class PaymentController {
     }
   }
 
+  // async handlePaymentCallback(req: Request, res: Response): Promise<void> {
+  //   try {
+  //     const { status } = req.params;
+  //     const { paymentId, session_id, tran_id } = req.query;
+
+  //     const resolvedPaymentId = (paymentId || tran_id || session_id) as string;
+
+  //     if (!resolvedPaymentId) {
+  //       res.redirect('/payment/error?reason=missing_id');
+  //       return;
+  //     }
+  //     console.log("status: " + status)
+
+  //     if (status === 'success') {
+  //       await paymentService.handlePaymentSuccess(
+  //         resolvedPaymentId,
+  //         req.query.gatewayTxnId as string || '',
+  //         req.query as Record<string, any>
+  //       );
+  //       res.redirect(`/payment/success?paymentId=${resolvedPaymentId}`);
+  //     } else if (status === 'fail') {
+  //       await paymentService.handlePaymentFailure(resolvedPaymentId, req.query as Record<string, any>);
+  //       res.redirect(`/payment/failed?paymentId=${resolvedPaymentId}`);
+  //     } else {
+  //       res.redirect(`/payment/cancelled?paymentId=${resolvedPaymentId}`);
+  //     }
+  //   } catch (error) {
+  //     logger.error('Payment callback error', { error });
+  //     res.redirect('/payment/error');
+  //   }
+  // }
+
+
+
   async handlePaymentCallback(req: Request, res: Response): Promise<void> {
     try {
       const { status } = req.params;
-      const { paymentId, session_id, tran_id } = req.query;
+      const { paymentId, tran_id, session_id } = req.body || req.query;
 
-      const resolvedPaymentId = (paymentId || tran_id || session_id) as string;
+      const resolvedPaymentId = paymentId || tran_id || session_id;
 
       if (!resolvedPaymentId) {
-        res.redirect('/payment/error?reason=missing_id');
+        res.redirect(`${process.env.FRONTEND_URL}/payment/error`);
         return;
       }
 
       if (status === 'success') {
         await paymentService.handlePaymentSuccess(
           resolvedPaymentId,
-          req.query.gatewayTxnId as string || '',
-          req.query as Record<string, any>
+          req.body?.tran_id || '',
+          req.body || req.query
         );
-        res.redirect(`/payment/success?paymentId=${resolvedPaymentId}`);
-      } else if (status === 'fail') {
-        await paymentService.handlePaymentFailure(resolvedPaymentId, req.query as Record<string, any>);
-        res.redirect(`/payment/failed?paymentId=${resolvedPaymentId}`);
-      } else {
-        res.redirect(`/payment/cancelled?paymentId=${resolvedPaymentId}`);
+        res.redirect(`${process.env.FRONTEND_URL}/payment/success`);
+        return;
       }
-    } catch (error) {
-      logger.error('Payment callback error', { error });
-      res.redirect('/payment/error');
+
+      if (status === 'fail') {
+        await paymentService.handlePaymentFailure(
+          resolvedPaymentId,
+          req.body || req.query
+        );
+        res.redirect(`${process.env.FRONTEND_URL}/payment/failed`);
+        return;
+      }
+
+      res.redirect(`${process.env.FRONTEND_URL}/payment/cancelled`);
+    } catch (err) {
+      logger.error('Payment callback error', err);
+      res.redirect(`${process.env.FRONTEND_URL}/payment/error`);
     }
   }
 }

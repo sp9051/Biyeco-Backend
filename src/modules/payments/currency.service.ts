@@ -22,8 +22,13 @@ export class CurrencyService {
 
     async detectCurrency(profileId: string, requestIp?: string): Promise<CountryDetectionResult> {
         console.log(this.ipApiKey)
+        console.log(profileId)
+        console.log(requestIp)
+
+
         try {
             const detectionSources = await this.getAllDetectionSources(profileId, requestIp);
+            console.log(detectionSources)
             const finalResult = this.resolveCurrency(detectionSources);
 
             logger.info('Currency detection completed', {

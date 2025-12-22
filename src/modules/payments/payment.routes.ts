@@ -66,8 +66,12 @@ router.post(
   paymentController.checkEntitlement.bind(paymentController)
 );
 
-router.get('/callback/:status', paymentController.handlePaymentCallback.bind(paymentController));
+// router.get('/callback/:status', paymentController.handlePaymentCallback.bind(paymentController));
 
+router.all(
+  '/callback/:status',
+  paymentController.handlePaymentCallback.bind(paymentController)
+);
 router.post('/webhooks/sslcommerz', webhookController.handleSSLCommerz.bind(webhookController));
 router.post('/webhooks/stripe', webhookController.handleStripe.bind(webhookController));
 router.post('/webhooks/bkash', webhookController.handleBkash.bind(webhookController));
