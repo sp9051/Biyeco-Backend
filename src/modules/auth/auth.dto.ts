@@ -90,14 +90,37 @@ export const InviteChildSchema = z.object({
   relationship: z.string().min(1, 'Relationship is required'),
 });
 
+// export const VerifyOTPSchema = z.object({
+//   // email: z.string().email('Invalid email address'),
+//   email: z.string().optional(),
+
+//   otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must contain only digits'),
+// });
+
+// export const LoginSchema = z.object({
+//   // email: z.string().email('Invalid email address'),
+//   email: z.string().optional(),
+//   password: z.string().min(8, 'Password is required'),
+// });
+
+const DummyEmail = process.env.ALLOW_DUMMY_LOGIN === 'true'
+  ? z.literal('biyeco-test')
+  : z.never();
+
 export const VerifyOTPSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.union([
+    z.string().email(),
+    DummyEmail,
+  ]),
   otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must contain only digits'),
 });
 
 export const LoginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password is required'),
+  email: z.union([
+    z.string().email(),
+    DummyEmail,
+  ]),
+  password: z.string().min(8),
 });
 
 export const RefreshTokenSchema = z.object({

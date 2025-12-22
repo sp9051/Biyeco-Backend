@@ -152,10 +152,34 @@ export class AuthService {
   async verify(dto: VerifyOTPDTO, sessionInfo: SessionInfo): Promise<AuthResponse> {
     let { email, otp } = dto;
 
-    if (email == 'biyeco-test' && otp == '000000') {
-      email = 'agnibhaduttaray@gmail.com'
-    }
+    if (email === 'biyeco-test' && otp === '000000') {
+      const user = await prisma.user.findUnique({
+        where: { email: 'sp905128@gmail.com' },
+      });
 
+      if (!user) {
+        throw new Error('Dummy user not found');
+      }
+
+      const profile = await prisma.profile.findFirst({
+        where: { userId: user.id },
+      });
+
+      if (!profile) {
+        throw new Error('Profile not found for dummy user');
+      }
+
+      const sessionId = await sessionService.createSession(user.id, sessionInfo);
+      const accessToken = tokenService.generateAccessToken(user.id, user.email, sessionId);
+      const refreshToken = await tokenService.generateRefreshToken(user.id, sessionId);
+
+      return {
+        accessToken,
+        refreshToken,
+        user: this.sanitizeUser(user),
+        profile,
+      };
+    }
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || !user.otpHash || !user.otpExpiry) {
@@ -167,9 +191,6 @@ export class AuthService {
     }
 
     let isOTPValid = await bcrypt.compare(otp, user.otpHash);
-    if (email == 'agnibhaduttaray@gmail.com' && otp == '000000') {
-      isOTPValid = true;
-    }
 
     if (!isOTPValid) {
       logger.warn('Invalid OTP attempt', { email });
