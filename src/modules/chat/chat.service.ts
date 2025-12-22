@@ -132,7 +132,7 @@ export class ChatService {
       }
     }
 
-    let user = await prisma.user.findUnique({ where: { id: fromUserId } });
+    let user = await prisma.user.findUnique({ where: { id: fromUserId }, include: { profile: true } });
     // Emit notification
     console.log("🔥 EVENT EMITTED", {
       userId: toUserId,
@@ -142,7 +142,7 @@ export class ChatService {
       userId: toUserId,
       type: "new_message",
       metadata: {
-        fromName: user?.firstName,
+        fromName: user?.profile?.registeredUserId,
         threadId: threadId
       },
       priority: "HIGH"

@@ -107,14 +107,14 @@ export class ConnectionsService {
       toUserId,
       interestId: interest.id,
     });
-    let user = await prisma.user.findUnique({ where: { id: fromUserId } });
+    let user = await prisma.user.findUnique({ where: { id: fromUserId }, include: { profile: true } });
 
     // Emit notification
     eventBus.emitNotification({
       userId: toUserId,
       type: "interest_received",
       metadata: {
-        fromName: user?.firstName,
+        fromName: user?.profile?.registeredUserId,
         fromUserId: fromUserId
       },
       priority: "HIGH"

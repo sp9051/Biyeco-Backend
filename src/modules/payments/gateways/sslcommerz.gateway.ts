@@ -130,6 +130,7 @@ export class SSLCommerzGateway {
   }
 
   async initiatePayment(request: GatewayPaymentRequest): Promise<GatewayPaymentResponse> {
+    console.log('SSLCommerz base URL:', this.baseUrl);
     try {
       logger.info('SSLCommerz: Initiating payment', {
         paymentId: request.paymentId,
