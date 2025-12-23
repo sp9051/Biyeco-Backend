@@ -282,20 +282,33 @@ export class PaymentController {
 
   async handlePaymentCallback(req: Request, res: Response): Promise<void> {
     try {
+
       const { status } = req.params;
-      const { paymentId, tran_id, session_id } = req.body || req.query;
+      const data = {
+        ...req.query,
+        ...req.body,
+      };
+      const { paymentId, tran_id, session_id } = data;
+      // const { paymentId, tran_id, session_id } = req.body || req.query;
 
       const resolvedPaymentId = paymentId || tran_id || session_id;
+
+      console.log(paymentId)
+      console.log(tran_id)
+      console.log(session_id)
+
+      // console.log(req)
 
       if (!resolvedPaymentId) {
         res.redirect(`${process.env.FRONTEND_URL}/payment/error`);
         return;
       }
 
+
       if (status === 'success') {
         await paymentService.handlePaymentSuccess(
           resolvedPaymentId,
-          req.body?.tran_id || '',
+          tran_id || '',
           req.body || req.query
         );
         res.redirect(`${process.env.FRONTEND_URL}/payment/success`);

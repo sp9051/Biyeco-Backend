@@ -26,12 +26,12 @@ export class EmailService {
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Your Biye Co OTP Code</h2>
-        <p>Your OTP is <strong style="font-size: 24px; color: #4CAF50;">${otp}</strong></p>
+        <h2>Your Biye Co. OTP Code</h2>
+        <p>Your one-time password (OTP) is <strong style="font-size: 24px; color: #3d2d5a;">${otp}</strong></p>
         <p>This code is valid for <strong>5 minutes</strong>.</p>
-        <p>If you didn't request this code, please ignore this email.</p>
+        <p>If you did not request this code, please ignore this email. No action is required.</p>
         <hr style="margin-top: 20px; border: none; border-top: 1px solid #ddd;">
-        <p style="color: #888; font-size: 12px;">This is an automated email from Biye. Please do not reply.</p>
+        <p style="color: #888; font-size: 12px;">This is an automated message from Biye Co. Please do not reply.</p>
       </div>
     `;
 
@@ -39,7 +39,7 @@ export class EmailService {
       await transporter.sendMail({
         from: process.env.EMAIL_FROM || '"Biye" <noreply@biye.com>',
         to: email,
-        subject: 'Your BiyeCo OTP Code',
+        subject: 'Your Biye Co. OTP Code',
         html,
       });
 
@@ -57,12 +57,12 @@ export class EmailService {
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Welcome to Biye!</h2>
+        <h2>Welcome to Biye Co.</h2>
         <p>Hi ${fullName || 'there'},</p>
-        <p>Thank you for registering with BiyeCo. Your account has been successfully verified.</p>
-        <p>You can now log in and start exploring our platform.</p>
+        <p>Thank you for registering with Biye Co. Your account has been successfully verified.</p>
+        <p>You can now log in and begin your journey on the platform.</p>
         <hr style="margin-top: 20px; border: none; border-top: 1px solid #ddd;">
-        <p style="color: #888; font-size: 12px;">This is an automated email from BiyeCo. Please do not reply.</p>
+        <p style="color: #888; font-size: 12px;">This is an automated email from Biye Co. Please do not reply.</p>
       </div>
     `;
 
