@@ -130,9 +130,15 @@ export class PaymentService {
     gatewayTxnId: string,
     rawResponse: Record<string, any>
   ): Promise<void> {
+    console.log(paymentId)
+    console.log(gatewayTxnId)
+    console.log(rawResponse)
+
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
     });
+    console.log(payment)
+
 
 
 
@@ -150,7 +156,7 @@ export class PaymentService {
       return;
     }
 
-    const plan = await this.getPlanFromPaymentContext(payment);
+    const plan = await this.getPlanFromPaymentContext(rawResponse);
     if (!plan) {
       throw new Error('Could not determine plan for payment');
     }
@@ -313,9 +319,9 @@ export class PaymentService {
     }
   }
 
-  private async getPlanFromPaymentContext(payment: any) {
-    const rawResponse = payment.rawResponse as Record<string, any>;
-    const planCode = rawResponse?.planCode || rawResponse?.product_name;
+  private async getPlanFromPaymentContext(rawResponse: any) {
+    // const rawResponse = payment.rawResponse as Record<string, any>;
+    const planCode = rawResponse?.value_b || rawResponse?.value_b;
 
     if (planCode) {
       return planService.getPlanByCode(planCode);
