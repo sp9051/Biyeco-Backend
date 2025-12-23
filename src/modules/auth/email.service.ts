@@ -26,7 +26,7 @@ export class EmailService {
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Your Biye OTP Code</h2>
+        <h2>Your Biye Co OTP Code</h2>
         <p>Your OTP is <strong style="font-size: 24px; color: #4CAF50;">${otp}</strong></p>
         <p>This code is valid for <strong>5 minutes</strong>.</p>
         <p>If you didn't request this code, please ignore this email.</p>
@@ -39,7 +39,7 @@ export class EmailService {
       await transporter.sendMail({
         from: process.env.EMAIL_FROM || '"Biye" <noreply@biye.com>',
         to: email,
-        subject: 'Your Biye OTP Code',
+        subject: 'Your BiyeCo OTP Code',
         html,
       });
 
@@ -59,18 +59,18 @@ export class EmailService {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Welcome to Biye!</h2>
         <p>Hi ${fullName || 'there'},</p>
-        <p>Thank you for registering with Biye. Your account has been successfully verified.</p>
+        <p>Thank you for registering with BiyeCo. Your account has been successfully verified.</p>
         <p>You can now log in and start exploring our platform.</p>
         <hr style="margin-top: 20px; border: none; border-top: 1px solid #ddd;">
-        <p style="color: #888; font-size: 12px;">This is an automated email from Biye. Please do not reply.</p>
+        <p style="color: #888; font-size: 12px;">This is an automated email from BiyeCo. Please do not reply.</p>
       </div>
     `;
 
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_FROM || '"Biye" <noreply@biye.com>',
+        from: process.env.EMAIL_FROM || '"BiyeCo" <noreply@biye.com>',
         to: email,
-        subject: 'Welcome to Biye!',
+        subject: 'Welcome to BiyeCo!',
         html,
       });
 
@@ -93,9 +93,9 @@ export class EmailService {
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>You've Been Invited to Biye!</h2>
+        <h2>You've Been Invited to BiyeCo!</h2>
         <p>Hi there,</p>
-        <p><strong>${data.parentName}</strong> has created a matrimonial profile for you on Biye.</p>
+        <p><strong>${data.parentName}</strong> has created a matrimonial profile for you on BiyeCo.</p>
         <p>To claim your profile and set up your login, please click the link below:</p>
         <p style="margin: 20px 0;">
           <a href="${inviteLink}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
@@ -105,13 +105,13 @@ export class EmailService {
         <p>Or copy and paste this link into your browser:</p>
         <p style="word-break: break-all; color: #666;">${inviteLink}</p>
         <hr style="margin-top: 20px; border: none; border-top: 1px solid #ddd;">
-        <p style="color: #888; font-size: 12px;">This is an automated email from Biye. Please do not reply.</p>
+        <p style="color: #888; font-size: 12px;">This is an automated email from BiyeCo. Please do not reply.</p>
       </div>
     `;
 
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_FROM || '"Biye" <noreply@biye.com>',
+        from: process.env.EMAIL_FROM || '"BiyeCo" <noreply@biye.com>',
         to: email,
         subject: `${data.parentName} has created a profile for you on Biye`,
         html,
@@ -137,9 +137,9 @@ export class EmailService {
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>You've Been Invited to Help Manage a Profile on Biye!</h2>
+        <h2>You've Been Invited to Help Manage a Profile on BiyeCo!</h2>
         <p>Hi there,</p>
-        <p><strong>${data.inviterName}</strong> has invited you to help manage a matrimonial profile on Biye as <strong>${data.relationship}</strong>.</p>
+        <p><strong>${data.inviterName}</strong> has invited you to help manage a matrimonial profile on BiyeCo as <strong>${data.relationship}</strong>.</p>
         <p>To accept the invitation and set up your login, please click the link below:</p>
         <p style="margin: 20px 0;">
           <a href="${inviteLink}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
@@ -149,13 +149,13 @@ export class EmailService {
         <p>Or copy and paste this link into your browser:</p>
         <p style="word-break: break-all; color: #666;">${inviteLink}</p>
         <hr style="margin-top: 20px; border: none; border-top: 1px solid #ddd;">
-        <p style="color: #888; font-size: 12px;">This is an automated email from Biye. Please do not reply.</p>
+        <p style="color: #888; font-size: 12px;">This is an automated email from BiyeCo. Please do not reply.</p>
       </div>
     `;
 
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_FROM || '"Biye" <noreply@biye.com>',
+        from: process.env.EMAIL_FROM || '"BiyeCo" <noreply@biye.com>',
         to: email,
         subject: `${data.inviterName} has invited you to Biye`,
         html,
