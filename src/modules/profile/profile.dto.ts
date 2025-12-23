@@ -157,7 +157,7 @@ const expandedPartnerPreferenceSchema = z.object({
   prefEducation: z.string().optional(),
   prefProfession: z.string().optional(),
   prefReligion: z.string().optional(),
-  prefMaritalStatus: z.string().optional(),
+  prefMaritalStatus: z.array(z.string()).optional(),
   prefChildrenCount: z.number().optional(),
   prefChildrenStatus: z.string().optional(),
   prefDietPreference: z.string().optional(),

@@ -63,7 +63,7 @@ export function createApp() {
     next();
   });
 
-
+  app.set('trust proxy', true);
 
   app.use(helmetMiddleware);
   app.use(corsMiddleware);
